@@ -37,35 +37,8 @@ public class AiCompletionService {
     public String complete(SettingsModels.AiSettings settings, String systemPrompt, String userPrompt) {
         validateConfiguration(settings);
 
-        String requestUrl = resolveRequestUrl(settings);
-        Map<String, Object> payload = buildPayload(settings, requestUrl, systemPrompt, userPrompt);
-
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(requestUrl))
-                .timeout(REQUEST_TIMEOUT)
-                .header("Content-Type", "application/json");
-
-        if (isAzureEndpoint(settings, requestUrl)) {
-            requestBuilder.header("api-key", settings.apiKey().trim());
-        } else {
-            requestBuilder.header("Authorization", "Bearer " + settings.apiKey().trim());
-        }
-
         try {
-            String body = objectMapper.writeValueAsString(payload);
-            log.info("AI request -> provider={}, model={}, url={}", settings.provider(), settings.model(), requestUrl);
-
-            HttpRequest request = requestBuilder
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            log.info("AI response <- status={}", response.statusCode());
-            log.debug("AI raw response: {}", response.body());
-
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException(extractErrorMessage(response.body(), response.statusCode()));
-            }
-
+            HttpResponse<String> response = sendCompletionRequest(settings, systemPrompt, userPrompt);
             JsonNode root = objectMapper.readTree(response.body());
             JsonNode contentNode = root.path("choices").path(0).path("message").path("content");
             if (contentNode.isMissingNode() || contentNode.isNull()) {
@@ -79,20 +52,27 @@ public class AiCompletionService {
                 throw new IllegalStateException("AI returned an empty response.");
             }
             return content.trim();
-        } catch (java.net.http.HttpTimeoutException exception) {
-            throw new IllegalStateException("AI request timed out. Please check whether the current machine can reach the AI gateway.", exception);
-        } catch (java.net.ConnectException exception) {
-            throw new IllegalStateException("Failed to connect to the AI gateway. Please check the configured Base URL and network connectivity.", exception);
         } catch (IOException exception) {
             log.error("Failed to parse AI response payload", exception);
             throw new IllegalStateException("Failed to parse AI response.", exception);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("AI request was interrupted.", exception);
         } catch (Exception exception) {
             log.error("Unexpected AI request error", exception);
             throw exception;
         }
+    }
+
+    public SettingsModels.AiConnectionTestResult testConnection(SettingsModels.AiSettings settings) {
+        validateConfiguration(settings);
+
+        String requestUrl = resolveRequestUrl(settings);
+        HttpResponse<String> response = sendCompletionRequest(
+                settings,
+                "Reply with exactly OK.",
+                "This is a connection test. Return exactly OK."
+        );
+
+        String preview = extractConnectionPreview(response.body());
+        return new SettingsModels.AiConnectionTestResult(true, requestUrl, preview);
     }
 
     private void validateConfiguration(SettingsModels.AiSettings settings) {
@@ -131,6 +111,53 @@ public class AiCompletionService {
             raw = raw.substring(0, raw.length() - 1);
         }
         return raw + "/chat/completions";
+    }
+
+    private HttpResponse<String> sendCompletionRequest(
+            SettingsModels.AiSettings settings,
+            String systemPrompt,
+            String userPrompt
+    ) {
+        String requestUrl = resolveRequestUrl(settings);
+        Map<String, Object> payload = buildPayload(settings, requestUrl, systemPrompt, userPrompt);
+
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(requestUrl))
+                .timeout(REQUEST_TIMEOUT)
+                .header("Content-Type", "application/json");
+
+        if (isAzureEndpoint(settings, requestUrl)) {
+            requestBuilder.header("api-key", settings.apiKey().trim());
+        } else {
+            requestBuilder.header("Authorization", "Bearer " + settings.apiKey().trim());
+        }
+
+        try {
+            String body = objectMapper.writeValueAsString(payload);
+            log.info("AI request -> provider={}, model={}, url={}", settings.provider(), settings.model(), requestUrl);
+
+            HttpRequest request = requestBuilder
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            log.info("AI response <- status={}", response.statusCode());
+            log.debug("AI raw response: {}", response.body());
+
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException(extractErrorMessage(response.body(), response.statusCode()));
+            }
+
+            return response;
+        } catch (java.net.http.HttpTimeoutException exception) {
+            throw new IllegalStateException("AI request timed out. Please check whether the current machine can reach the AI gateway.", exception);
+        } catch (java.net.ConnectException exception) {
+            throw new IllegalStateException("Failed to connect to the AI gateway. Please check the configured Base URL and network connectivity.", exception);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to serialize AI request or parse AI response.", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("AI request was interrupted.", exception);
+        }
     }
 
     private boolean isAzureEndpoint(SettingsModels.AiSettings settings, String requestUrl) {
@@ -225,5 +252,37 @@ public class AiCompletionService {
             fallback = "Unknown error";
         }
         return "AI request failed (" + statusCode + "): " + fallback;
+    }
+
+    private String extractConnectionPreview(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "";
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode contentNode = root.path("choices").path(0).path("message").path("content");
+            if (contentNode.isMissingNode() || contentNode.isNull()) {
+                contentNode = root.path("choices").path(0).path("text");
+            }
+            if ((contentNode.isMissingNode() || contentNode.isNull()) && root.hasNonNull("output_text")) {
+                contentNode = root.get("output_text");
+            }
+            String content = extractContent(contentNode).trim();
+            if (!content.isBlank()) {
+                return truncate(content, 120);
+            }
+        } catch (Exception ignored) {
+            // Fall back to raw response below.
+        }
+
+        return truncate(responseBody.trim(), 120);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value == null ? "" : value;
+        }
+        return value.substring(0, maxLength) + "...";
     }
 }

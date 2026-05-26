@@ -104,6 +104,7 @@ public class WorkflowDraftService {
         String productName = fallback(request.productName(), ai.defaultProductName());
         String valueProposition = fallback(request.valueProposition(), ai.defaultValueProposition());
         String callToAction = fallback(request.callToAction(), ai.defaultCallToAction());
+        String optimizationLogic = fallback(ai.defaultOptimizationLogic(), "");
 
         List<WorkflowModels.CustomerLead> recipients = safeRecipients(request.recipients());
         WorkflowModels.CustomerLead firstRecipient = recipients.isEmpty()
@@ -128,7 +129,8 @@ public class WorkflowDraftService {
                 valueProposition,
                 callToAction,
                 language,
-                firstRecipient
+                firstRecipient,
+                optimizationLogic
         );
 
         log.info("Optimizing draft with AI. recipient={}, provider={}, model={}, targetLanguage={}",
@@ -294,7 +296,8 @@ public class WorkflowDraftService {
             String valueProposition,
             String callToAction,
             String language,
-            WorkflowModels.CustomerLead recipient
+            WorkflowModels.CustomerLead recipient,
+            String optimizationLogic
     ) {
         String languageName = resolveLanguageName(language);
         boolean nonChinese = isNonChineseTarget(language);
@@ -305,6 +308,9 @@ public class WorkflowDraftService {
         String cnProduct = nonChinese && containsChinese(productName) ? " [TRANSLATE TO " + languageName + "]" : "";
         String cnValue = nonChinese && containsChinese(valueProposition) ? " [TRANSLATE TO " + languageName + "]" : "";
         String cnCta = nonChinese && containsChinese(callToAction) ? " [TRANSLATE TO " + languageName + "]" : "";
+        String extraRules = optimizationLogic == null || optimizationLogic.isBlank()
+                ? ""
+                : "\nAdditional optimization rules:\n" + optimizationLogic.trim() + "\n";
         return """
                 Target output language: %s (%s)
                 Final email rule: the optimized subject and body must be fully written in %s only.%s
@@ -321,6 +327,7 @@ public class WorkflowDraftService {
                 %s
                                 
                 Current body:
+                %s
                 %s
                                 
                 Please optimize the subject and body.
@@ -339,6 +346,7 @@ public class WorkflowDraftService {
                 fallback(recipient.contactName(), "Business Contact"),
                 fallback(subject, ""),
                 fallback(body, ""),
+                extraRules,
                 languageName
         );
     }

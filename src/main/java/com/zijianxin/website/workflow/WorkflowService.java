@@ -9,17 +9,20 @@ public class WorkflowService {
     private final WorkflowDraftService workflowDraftService;
     private final WorkflowEmailService workflowEmailService;
     private final SettingsService settingsService;
+    private final AiCompletionService aiCompletionService;
 
     public WorkflowService(
             WorkflowSearchService workflowSearchService,
             WorkflowDraftService workflowDraftService,
             WorkflowEmailService workflowEmailService,
-            SettingsService settingsService
+            SettingsService settingsService,
+            AiCompletionService aiCompletionService
     ) {
         this.workflowSearchService = workflowSearchService;
         this.workflowDraftService = workflowDraftService;
         this.workflowEmailService = workflowEmailService;
         this.settingsService = settingsService;
+        this.aiCompletionService = aiCompletionService;
     }
 
     public synchronized WorkflowModels.CustomerSearchResponse searchCustomers(WorkflowModels.CustomerSearchRequest request) {
@@ -52,6 +55,10 @@ public class WorkflowService {
 
     public SettingsModels.AiSettings saveAiSettings(SettingsModels.AiSettings request) {
         return settingsService.saveAiSettings(request);
+    }
+
+    public SettingsModels.AiConnectionTestResult testAiSettings(SettingsModels.AiSettings request) {
+        return aiCompletionService.testConnection(request);
     }
 
     public SettingsModels.SearchSettings saveSearchSettings(SettingsModels.SearchSettings request) {

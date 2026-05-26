@@ -61,7 +61,8 @@ public final class SettingsModels {
             String defaultValueProposition,
             String defaultLanguage,
             String defaultTone,
-            String defaultCallToAction
+            String defaultCallToAction,
+            String defaultOptimizationLogic
     ) {
         public AiSettings {
             provider = provider == null || provider.isBlank() ? "Qwen" : provider;
@@ -74,6 +75,7 @@ public final class SettingsModels {
             defaultLanguage = defaultLanguage == null || defaultLanguage.isBlank() ? "zh-CN" : defaultLanguage;
             defaultTone = defaultTone == null || defaultTone.isBlank() ? "professional" : defaultTone;
             defaultCallToAction = defaultCallToAction == null ? "" : defaultCallToAction;
+            defaultOptimizationLogic = defaultOptimizationLogic == null ? "" : defaultOptimizationLogic;
         }
 
         public static AiSettings defaults() {
@@ -87,9 +89,17 @@ public final class SettingsModels {
                     "We help trade teams combine customer search, outreach draft generation, and follow-up management in one workflow.",
                     "zh-CN",
                     "professional",
-                    "If it is convenient, we can arrange a short 15-minute call to see whether this workflow fits your team."
+                    "If it is convenient, we can arrange a short 15-minute call to see whether this workflow fits your team.",
+                    ""
             );
         }
+    }
+
+    public record AiConnectionTestResult(
+            boolean success,
+            String requestUrl,
+            String responsePreview
+    ) {
     }
 
     public record SearchSettings(

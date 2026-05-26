@@ -72,6 +72,11 @@ public class WorkflowApiController {
         return workflowService.saveAiSettings(request);
     }
 
+    @PostMapping("/settings/ai/test")
+    public SettingsModels.AiConnectionTestResult testAiSettings(@RequestBody SettingsModels.AiSettings request) {
+        return workflowService.testAiSettings(request);
+    }
+
     @PostMapping("/settings/search")
     public SettingsModels.SearchSettings saveSearchSettings(@RequestBody SettingsModels.SearchSettings request) {
         return workflowService.saveSearchSettings(request);

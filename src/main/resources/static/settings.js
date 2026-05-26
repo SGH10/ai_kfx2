@@ -57,23 +57,59 @@
     setValue("#ai-default-call-to-action", settings.ai.defaultCallToAction);
     setValue("#ai-default-optimization-logic", settings.ai.defaultOptimizationLogic);
 
+    document.querySelector("#test-ai-connection")?.addEventListener("click", async () => {
+      const button = document.querySelector("#test-ai-connection");
+      if (button) {
+        button.disabled = true;
+      }
+
+      setResult(
+        "#ai-test-result",
+        t("正在测试连接，请稍候...", "Testing connection, please wait..."),
+        true
+      );
+
+      try {
+        const response = await fetch("/api/settings/ai/test", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(buildAiPayload())
+        });
+
+        const rawText = await response.text();
+        if (!response.ok) {
+          setResult(
+            "#ai-test-result",
+            rawText || t("连接测试失败，请检查配置后重试。", "Connection test failed. Please review the configuration and try again."),
+            false
+          );
+          return;
+        }
+
+        const result = rawText ? JSON.parse(rawText) : null;
+        const successMessage = formatAiTestSuccess(result);
+        setResult("#ai-test-result", successMessage, true);
+      } catch (error) {
+        console.error("AI connection test failed:", error);
+        setResult(
+          "#ai-test-result",
+          t("连接测试失败，请检查网络或稍后重试。", "Connection test failed. Please check the network or try again later."),
+          false
+        );
+      } finally {
+        if (button) {
+          button.disabled = false;
+        }
+      }
+    });
+
     document.querySelector("#ai-settings-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
       await saveSettings(
         "/api/settings/ai",
-        {
-          provider: valueOf("#ai-provider"),
-          apiKey: valueOf("#ai-api-key"),
-          model: valueOf("#ai-model"),
-          baseUrl: valueOf("#ai-base-url"),
-          defaultCompanyName: valueOf("#ai-default-company-name"),
-          defaultProductName: valueOf("#ai-default-product-name"),
-          defaultValueProposition: valueOf("#ai-default-value-proposition"),
-          defaultLanguage: valueOf("#ai-default-language"),
-          defaultTone: valueOf("#ai-default-tone"),
-          defaultCallToAction: valueOf("#ai-default-call-to-action"),
-          defaultOptimizationLogic: valueOf("#ai-default-optimization-logic")
-        },
+        buildAiPayload(),
         "#ai-settings-result",
         t("AI 配置已保存，开发信页默认值会同步更新。", "AI settings saved. Outreach page defaults have been updated.")
       );
@@ -233,6 +269,29 @@
     element.textContent = message;
     element.classList.remove("is-success", "is-warning");
     element.classList.add(success ? "is-success" : "is-warning");
+  }
+
+  function buildAiPayload() {
+    return {
+      provider: valueOf("#ai-provider"),
+      apiKey: valueOf("#ai-api-key"),
+      model: valueOf("#ai-model"),
+      baseUrl: valueOf("#ai-base-url"),
+      defaultCompanyName: valueOf("#ai-default-company-name"),
+      defaultProductName: valueOf("#ai-default-product-name"),
+      defaultValueProposition: valueOf("#ai-default-value-proposition"),
+      defaultLanguage: valueOf("#ai-default-language"),
+      defaultTone: valueOf("#ai-default-tone"),
+      defaultCallToAction: valueOf("#ai-default-call-to-action"),
+      defaultOptimizationLogic: valueOf("#ai-default-optimization-logic")
+    };
+  }
+
+  function formatAiTestSuccess(result) {
+    const requestUrl = result?.requestUrl ? `\nURL: ${result.requestUrl}` : "";
+    const previewLabel = t("返回预览", "Response preview");
+    const preview = result?.responsePreview ? `\n${previewLabel}: ${result.responsePreview}` : "";
+    return t("连接测试成功。", "Connection test succeeded.") + requestUrl + preview;
   }
 
   function setValue(selector, value) {
