@@ -58,6 +58,7 @@ public class WorkflowSearchService {
             "thepaper.cn",
             "dictionary.cambridge.org",
             "iciba.com",
+            "chazidian.com",
             "dict.cn",
             "dict.eudic.net",
             "engoo.cn.com",
@@ -71,7 +72,14 @@ public class WorkflowSearchService {
             "made-in-china.com",
             "alibaba.com",
             "1688.com",
-            "qcc.com"
+            "qcc.com",
+            "qixin.com",
+            "cufe.edu.cn",
+            "cass.cn",
+            "wistrategy.com",
+            "pcsoft.com.cn",
+            "onlinedown.net",
+            "zol.com.cn"
     );
 
     private static final List<String> CONTACT_PATH_HINTS = List.of(
@@ -95,7 +103,8 @@ public class WorkflowSearchService {
 
     private static final List<String> NON_COMPANY_TEXT_HINTS = List.of(
             "dictionary", "translation", "translate", "encyclopedia", "news", "article", "blog", "forum", "wiki",
-            "journal", "open access", "kids", "game", "gaming", "magazine", "paper", "research", "download"
+            "journal", "open access", "kids", "game", "gaming", "magazine", "paper", "research", "download",
+            "meaning", "what is", "是什么意思", "翻译", "download", "破解版", "安装包", "教程", "软件"
     );
 
     private static final List<String> EDITORIAL_URL_PATTERNS = List.of(
@@ -221,11 +230,32 @@ public class WorkflowSearchService {
         List<String> industryHints = buildSearchHints(industry);
         List<String> keywordHints = buildSearchHints(keywords);
         boolean hasKeywordHints = !keywordHints.isEmpty();
+        String normalizedIndustry = normalizeSearchPhrase(industry);
+        boolean componentsIndustry = normalizedIndustry.contains("industrial components")
+                || normalizedIndustry.contains("零部件")
+                || normalizedIndustry.contains("配件")
+                || normalizedIndustry.contains("部件");
+        boolean machineryIndustry = normalizedIndustry.contains("industrial machinery")
+                || normalizedIndustry.contains("general industrial machinery")
+                || normalizedIndustry.contains("通用机械设备")
+                || normalizedIndustry.contains("通用机械")
+                || normalizedIndustry.contains("机械设备");
+        boolean automationIndustry = normalizedIndustry.contains("industrial automation")
+                || normalizedIndustry.contains("工业自动化")
+                || normalizedIndustry.contains("自动化设备")
+                || normalizedIndustry.contains("工控")
+                || normalizedIndustry.contains("控制系统");
+        boolean cncIndustry = normalizedIndustry.contains("cnc")
+                || normalizedIndustry.contains("金属加工")
+                || normalizedIndustry.contains("数控")
+                || normalizedIndustry.contains("机床");
         String primaryIndustryHint = firstQueryHint(industryHints, toEnglishHint(industry));
+        String secondaryIndustryHint = nextDistinctQueryHint(industryHints, primaryIndustryHint);
         String primaryKeywordHint = hasKeywordHints
                 ? firstQueryHint(keywordHints, toEnglishHint(keywords))
                 : "";
         String nativeIndustryHint = firstNativeHint(industryHints, industry);
+        String secondaryNativeIndustryHint = nextDistinctNativeHint(industryHints, nativeIndustryHint);
         String nativeKeywordHint = hasKeywordHints
                 ? firstNativeHint(keywordHints, keywords)
                 : "";
@@ -241,6 +271,47 @@ public class WorkflowSearchService {
             queries.add(joinQuery(nativeKeywordHint, nativeIndustryHint, "厂家", "联系方式"));
             queries.add(joinQuery(nativeKeywordHint, nativeIndustryHint, "公司", "邮箱"));
             queries.add(joinQuery(nativeKeywordHint, nativeIndustryHint, "有限公司"));
+            if (!secondaryIndustryHint.isBlank()) {
+                queries.add(joinQuery("site:.cn", secondaryIndustryHint, "manufacturer", "official website"));
+                queries.add(joinQuery(secondaryIndustryHint, "supplier", "contact"));
+            }
+            if (!secondaryNativeIndustryHint.isBlank()) {
+                queries.add(joinQuery(secondaryNativeIndustryHint, "官网"));
+                queries.add(joinQuery(secondaryNativeIndustryHint, "有限公司"));
+            }
+            if (componentsIndustry) {
+                queries.add(joinQuery("site:.cn", "parts", "manufacturer"));
+                queries.add(joinQuery("site:.cn", "components", "supplier"));
+                queries.add(joinQuery("零部件", "有限公司"));
+                queries.add(joinQuery("配件", "厂家"));
+                queries.add(joinQuery("site:.cn", "零部件", "有限公司"));
+                queries.add(joinQuery("site:.cn", "配件", "有限公司"));
+                queries.add(joinQuery("site:.cn", "部件", "厂家"));
+            }
+            if (machineryIndustry) {
+                queries.add(joinQuery("site:.cn", "machinery equipment", "manufacturer"));
+                queries.add(joinQuery("通用机械", "有限公司"));
+                queries.add(joinQuery("机械设备", "厂家"));
+                queries.add(joinQuery("site:.cn", "通用机械", "有限公司"));
+                queries.add(joinQuery("site:.cn", "机械设备", "有限公司"));
+                queries.add(joinQuery("site:.cn", "机械设备", "厂家"));
+            }
+            if (automationIndustry) {
+                queries.add(joinQuery("site:.cn", "工业自动化", "有限公司"));
+                queries.add(joinQuery("site:.cn", "自动化设备", "有限公司"));
+                queries.add(joinQuery("site:.cn", "工控", "有限公司"));
+                queries.add(joinQuery("site:.cn", "plc", "company"));
+                queries.add(joinQuery("控制系统", "厂家"));
+                queries.add(joinQuery("伺服", "厂家"));
+            }
+            if (cncIndustry) {
+                queries.add(joinQuery("site:.cn", "数控", "有限公司"));
+                queries.add(joinQuery("site:.cn", "机床", "有限公司"));
+                queries.add(joinQuery("site:.cn", "金属加工", "厂家"));
+                queries.add(joinQuery("site:.cn", "CNC", "机床"));
+                queries.add(joinQuery("数控", "机床", "厂家"));
+                queries.add(joinQuery("加工中心", "厂家"));
+            }
             if (!"ALL".equalsIgnoreCase(companySize)) {
                 queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, companySize, "company"));
             }
@@ -298,13 +369,15 @@ public class WorkflowSearchService {
             session.log("Trying query: " + query);
             collectFromBingRss(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
             collectFromBingHtml(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
-            collectFromDuckDuckGo(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+            if (!"China".equalsIgnoreCase(market)) {
+                collectFromDuckDuckGo(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+            }
             if ("China".equalsIgnoreCase(market)) {
                 collectFromBaidu(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
             }
         }
 
-        if (candidates.size() < leadLimit) {
+        if (!"China".equalsIgnoreCase(market) && candidates.size() < leadLimit) {
             session.log("Google fallback enabled because primary sources returned only " + candidates.size() + " candidates.");
             collectGoogleFallback(queries, candidates, seenHosts, candidatePoolLimit, timeoutMs);
         }
@@ -634,7 +707,7 @@ public class WorkflowSearchService {
             return;
         }
 
-        candidates.add(new SearchCandidate(title, rootUrlOf(normalizedUrl), snippet, source));
+        candidates.add(new SearchCandidate(title, normalizedUrl, snippet, source));
     }
 
     private List<WorkflowModels.CustomerLead> inspectCandidates(
@@ -744,31 +817,37 @@ public class WorkflowSearchService {
             SettingsModels.CrawlerSettings crawlerSettings
     ) {
         try {
-            String homepageCandidate = rootUrlOf(candidate.url());
-            Document document = fetchDocument(homepageCandidate, timeoutMs);
+            boolean searchResultMatched = passesSearchResultFilters(candidate, industry, market, keywords);
+            String landingPageUrl = candidate.url();
+            Document document = fetchDocument(landingPageUrl, timeoutMs);
             if (document == null) {
                 return null;
             }
 
-            String finalUrl = document.location().isBlank() ? homepageCandidate : document.location();
+            String finalUrl = document.location().isBlank() ? landingPageUrl : document.location();
             String host = normalizeHost(hostOf(finalUrl));
             String title = cleanText(document.title());
             String text = cleanText(document.text());
             String combined = String.join(" ", title, text, candidate.title(), candidate.snippet()).toLowerCase(Locale.ROOT);
 
-            if (host.isBlank() || isBlockedHost(host)) {
-                return null;
+            boolean landingPageMatched = passesWebsiteFilters(host, finalUrl, combined, industry, market, keywords);
+            if (!landingPageMatched) {
+                String homepageCandidate = rootUrlOf(finalUrl);
+                if (!homepageCandidate.equals(landingPageUrl)) {
+                    Document homepageDocument = fetchDocument(homepageCandidate, timeoutMs);
+                    if (homepageDocument != null) {
+                        document = homepageDocument;
+                        finalUrl = document.location().isBlank() ? homepageCandidate : document.location();
+                        host = normalizeHost(hostOf(finalUrl));
+                        title = cleanText(document.title());
+                        text = cleanText(document.text());
+                        combined = String.join(" ", title, text, candidate.title(), candidate.snippet()).toLowerCase(Locale.ROOT);
+                    }
+                }
             }
-            if (looksLikeBlockedContent(finalUrl, combined)) {
-                return null;
-            }
-            if (!looksLikeCompanyCandidate(host, combined)) {
-                return null;
-            }
-            if (!matchesMarketSignal(host, combined, market)) {
-                return null;
-            }
-            if (!matchesKeywords(industry, keywords, combined)) {
+
+            boolean websiteMatched = passesWebsiteFilters(host, finalUrl, combined, industry, market, keywords);
+            if (!searchResultMatched && !websiteMatched) {
                 return null;
             }
 
@@ -816,6 +895,41 @@ public class WorkflowSearchService {
         }
     }
 
+    private boolean passesSearchResultFilters(SearchCandidate candidate, String industry, String market, String keywords) {
+        String candidateUrl = cleanText(candidate.url());
+        String host = normalizeHost(hostOf(candidateUrl));
+        String combined = (cleanText(candidate.title()) + " " + cleanText(candidate.snippet())).toLowerCase(Locale.ROOT);
+        if (host.isBlank() || isBlockedHost(host)) {
+            return false;
+        }
+        if (looksLikeBlockedContent(candidateUrl, combined)) {
+            return false;
+        }
+        if (!looksLikeCompanyCandidate(host, combined)) {
+            return false;
+        }
+        if (!matchesMarketSignal(host, combined, market)) {
+            return false;
+        }
+        return matchesKeywords(industry, keywords, combined);
+    }
+
+    private boolean passesWebsiteFilters(String host, String finalUrl, String combined, String industry, String market, String keywords) {
+        if (host.isBlank() || isBlockedHost(host)) {
+            return false;
+        }
+        if (looksLikeBlockedContent(finalUrl, combined)) {
+            return false;
+        }
+        if (!looksLikeCompanyCandidate(host, combined)) {
+            return false;
+        }
+        if (!matchesMarketSignal(host, combined, market)) {
+            return false;
+        }
+        return matchesKeywords(industry, keywords, combined);
+    }
+
     private WorkflowModels.CustomerLead toLead(PageScanResult scanResult) {
         return new WorkflowModels.CustomerLead(
                 "lead-" + UUID.randomUUID(),
@@ -857,14 +971,21 @@ public class WorkflowSearchService {
             if (!matchesKeywords(industry, keywords, combined)) {
                 continue;
             }
-            if (!hasStrongCompanySignal(host, combined)) {
+            if (!looksLikeCompanyCandidate(host, combined)) {
+                continue;
+            }
+            if (looksLikeBlockedContent(candidate.url(), combined)) {
                 continue;
             }
 
+            String companyName = simplifyTitle(candidate.title()).isBlank() ? host : simplifyTitle(candidate.title());
+            if (companyName.length() <= 2 || companyName.toLowerCase(Locale.ROOT).contains("数据库") || companyName.toLowerCase(Locale.ROOT).contains("字典")) {
+                continue;
+            }
             acceptedHosts.add(host);
             leads.add(new WorkflowModels.CustomerLead(
                     "lead-" + UUID.randomUUID(),
-                    simplifyTitle(candidate.title()).isBlank() ? host : simplifyTitle(candidate.title()),
+                    companyName,
                     rootUrlOf(candidate.url()),
                     inferCountry(host, market),
                     "Business Contact",
@@ -1044,16 +1165,20 @@ public class WorkflowSearchService {
 
         boolean industryMatched = industryHints.stream().anyMatch(hint -> containsMeaningfulPhrase(lower, hint));
         if (!hasKeywordHints) {
-            return industryMatched || isBroadIndustry(industry);
+            return industryMatched
+                    || industryHints.stream().anyMatch(hint -> containsLooseKeywordToken(lower, hint))
+                    || isBroadIndustry(industry);
         }
 
         boolean keywordMatched = keywordHints.stream().anyMatch(hint -> containsMeaningfulPhrase(lower, hint));
+        boolean looseKeywordMatched = keywordHints.stream().anyMatch(hint -> containsLooseKeywordToken(lower, hint));
 
         if (keywordMatched && (industryMatched || isBroadIndustry(industry))) {
             return true;
         }
 
-        return industryMatched && keywordHints.stream().anyMatch(hint -> containsLooseKeywordToken(lower, hint));
+        return (industryMatched || industryHints.stream().anyMatch(hint -> containsLooseKeywordToken(lower, hint)))
+                && (keywordMatched || looseKeywordMatched);
     }
 
     private boolean matchesMarketSignal(String host, String text, String market) {
@@ -1083,9 +1208,12 @@ public class WorkflowSearchService {
         if (looksLikeReferenceHost(host)) {
             return false;
         }
+        if (NON_COMPANY_TEXT_HINTS.stream().anyMatch(combined::contains)) {
+            return false;
+        }
         boolean companyHint = COMPANY_TEXT_HINTS.stream().anyMatch(combined::contains);
         boolean corporateDomain = host.endsWith(".cn") || host.endsWith(".com.cn") || host.endsWith(".de") || host.endsWith(".us");
-        return companyHint || (corporateDomain && hasStrongCompanySignal(host, combined));
+        return companyHint || corporateDomain || hasStrongCompanySignal(host, combined);
     }
 
     private boolean hasStrongCompanySignal(String host, String combined) {
@@ -1100,8 +1228,14 @@ public class WorkflowSearchService {
         return STRONG_COMPANY_HINTS.stream().anyMatch(lowerCombined::contains)
                 || lowerHost.contains("-auto")
                 || lowerHost.contains("automation")
+                || lowerHost.contains("component")
+                || lowerHost.contains("components")
+                || lowerHost.contains("part")
+                || lowerHost.contains("parts")
                 || lowerHost.contains("medical")
                 || lowerHost.contains("machinery")
+                || lowerHost.contains("equipment")
+                || lowerHost.contains("industrial")
                 || lowerHost.contains("robot")
                 || lowerHost.contains("tech");
     }
@@ -1111,7 +1245,12 @@ public class WorkflowSearchService {
         if (normalizedHost.isBlank()) {
             return false;
         }
-        return REFERENCE_HOST_HINTS.stream().anyMatch(normalizedHost::contains);
+        return REFERENCE_HOST_HINTS.stream().anyMatch(normalizedHost::contains)
+                || normalizedHost.endsWith(".edu.cn")
+                || normalizedHost.contains("university")
+                || normalizedHost.contains("college")
+                || normalizedHost.contains("school")
+                || normalizedHost.contains("datacenter");
     }
 
     private boolean isBlockedHost(String host) {
@@ -1481,6 +1620,72 @@ public class WorkflowSearchService {
             phrases.add("供应商");
         }
 
+        if (normalized.contains("industrial components")) {
+            phrases.add("industrial components");
+            phrases.add("industrial parts");
+            phrases.add("mechanical parts");
+            phrases.add("components");
+            phrases.add("parts");
+        }
+        if (normalized.contains("industrial automation")) {
+            phrases.add("industrial automation");
+            phrases.add("automation");
+            phrases.add("automation equipment");
+            phrases.add("control system");
+            phrases.add("motion control");
+            phrases.add("plc");
+            phrases.add("servo");
+            phrases.add("sensor");
+        }
+        if (normalized.contains("工业自动化")) {
+            phrases.add("工业自动化");
+            phrases.add("自动化设备");
+            phrases.add("工控");
+            phrases.add("控制系统");
+            phrases.add("伺服");
+            phrases.add("传感器");
+            phrases.add("工业自动化");
+            phrases.add("automation");
+            phrases.add("plc");
+        }
+        if (normalized.contains("工业零部件")) {
+            phrases.add("工业零部件");
+            phrases.add("零部件");
+            phrases.add("配件");
+            phrases.add("部件");
+            phrases.add("industrial components");
+            phrases.add("industrial parts");
+            phrases.add("mechanical parts");
+        }
+        if (normalized.contains("general industrial machinery")) {
+            phrases.add("general industrial machinery");
+            phrases.add("industrial machinery");
+            phrases.add("general machinery");
+            phrases.add("machinery equipment");
+            phrases.add("equipment");
+        }
+        if (normalized.contains("industrial machinery")) {
+            phrases.add("industrial machinery");
+            phrases.add("machinery equipment");
+            phrases.add("equipment");
+        }
+        if (normalized.contains("通用机械设备")) {
+            phrases.add("通用机械设备");
+            phrases.add("通用机械");
+            phrases.add("机械设备");
+            phrases.add("industrial machinery");
+            phrases.add("machinery equipment");
+            phrases.add("equipment");
+        }
+        if (!containsChineseScript(normalized) && phrases.isEmpty() && !normalized.isBlank()) {
+            phrases.add(normalized);
+            if (normalized.split("\\s+").length <= 4) {
+                phrases.add(normalized + " manufacturer");
+                phrases.add(normalized + " supplier");
+                phrases.add(normalized + " company");
+            }
+        }
+
         return new ArrayList<>(phrases);
     }
 
@@ -1500,6 +1705,22 @@ public class WorkflowSearchService {
                 .filter(hint -> !hint.isBlank() && containsChineseScript(hint))
                 .findFirst()
                 .orElse(cleanText(fallbackValue));
+    }
+
+    private String nextDistinctQueryHint(List<String> hints, String current) {
+        return hints.stream()
+                .filter(this::looksUsefulHint)
+                .filter(hint -> !hint.equalsIgnoreCase(cleanText(current)))
+                .findFirst()
+                .orElse("");
+    }
+
+    private String nextDistinctNativeHint(List<String> hints, String current) {
+        return hints.stream()
+                .filter(hint -> !hint.isBlank() && containsChineseScript(hint))
+                .filter(hint -> !hint.equals(cleanText(current)))
+                .findFirst()
+                .orElse("");
     }
 
     private boolean containsLooseKeywordToken(String haystack, String phrase) {
