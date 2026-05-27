@@ -44,6 +44,7 @@
     selectedIds: new Set(),
     activeController: null,
     requestedLimit: 50,
+    maxSearchDurationMs: 300000,
     startTime: 0,
     timerInterval: null
   };
@@ -77,6 +78,7 @@
       }
       const settings = await response.json();
       searchState.requestedLimit = Number(settings.search?.resultsPerPage || 50);
+      searchState.maxSearchDurationMs = Number(settings.crawler?.maxSearchDurationMs || 300000);
       if (requestedLimitInput) {
         requestedLimitInput.value = String(searchState.requestedLimit);
       }
@@ -133,7 +135,7 @@
 
     const controller = new AbortController();
     searchState.activeController = controller;
-    const timeoutId = window.setTimeout(() => controller.abort("timeout"), 300000);
+    const timeoutId = window.setTimeout(() => controller.abort("timeout"), searchState.maxSearchDurationMs || 300000);
 
     // Build payload first so searchState.requestedLimit is updated before rendering stats
     const payload = buildSearchPayload();

@@ -145,11 +145,6 @@ public class WorkflowSearchService {
             "主要", "需要", "寻找", "查找", "目标", "客户", "公司", "企业", "行业", "市场", "地区"
     );
 
-    private static final int SEARCH_ENGINE_PAGE_LIMIT = 2;
-    private static final int MAX_PARALLEL_INSPECTIONS = 8;
-    private static final int GOOGLE_FALLBACK_QUERY_LIMIT = 2;
-    private static final int GOOGLE_FALLBACK_PAGE_LIMIT = 1;
-    private static final int GOOGLE_FALLBACK_TIMEOUT_MS = 5000;
     private static final String SERPAPI_BASE_URL = "https://serpapi.com/search";
 
     private final SettingsService settingsService;
@@ -190,7 +185,7 @@ public class WorkflowSearchService {
         session.log("Search strategy: " + String.join(" | ", queries));
         session.log("Runtime config: limit=" + leadLimit + ", pool=" + candidatePoolLimit + ", timeout=" + timeoutMs + "ms");
 
-        List<SearchCandidate> candidates = fetchCandidates(queries, market, session, leadLimit, candidatePoolLimit, timeoutMs, searchSettings);
+        List<SearchCandidate> candidates = fetchCandidates(queries, market, session, leadLimit, candidatePoolLimit, timeoutMs, searchSettings, crawlerSettings);
         List<WorkflowModels.CustomerLead> leads = inspectCandidates(
                 candidates,
                 industry,
@@ -350,7 +345,8 @@ public class WorkflowSearchService {
             int leadLimit,
             int candidatePoolLimit,
             int timeoutMs,
-            SettingsModels.SearchSettings searchSettings
+            SettingsModels.SearchSettings searchSettings,
+            SettingsModels.CrawlerSettings crawlerSettings
     ) {
         String serpApiKey = searchSettings.serpApiKey();
         if (serpApiKey != null && !serpApiKey.isBlank()) {
@@ -368,18 +364,18 @@ public class WorkflowSearchService {
             }
             session.log("Trying query: " + query);
             collectFromBingRss(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
-            collectFromBingHtml(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+            collectFromBingHtml(query, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
             if (!"China".equalsIgnoreCase(market)) {
                 collectFromDuckDuckGo(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
             }
             if ("China".equalsIgnoreCase(market)) {
-                collectFromBaidu(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+                collectFromBaidu(query, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
             }
         }
 
-        if (!"China".equalsIgnoreCase(market) && candidates.size() < leadLimit) {
+        if (crawlerSettings.googleFallbackEnabled() && !"China".equalsIgnoreCase(market) && candidates.size() < leadLimit) {
             session.log("Google fallback enabled because primary sources returned only " + candidates.size() + " candidates.");
-            collectGoogleFallback(queries, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+            collectGoogleFallback(queries, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings);
         }
 
         session.log("Collected " + candidates.size() + " candidate websites.");
@@ -391,15 +387,23 @@ public class WorkflowSearchService {
             List<SearchCandidate> candidates,
             Set<String> seenHosts,
             int candidatePoolLimit,
-            int timeoutMs
+            int timeoutMs,
+            SettingsModels.CrawlerSettings crawlerSettings
     ) {
-        int queryLimit = Math.min(queries.size(), GOOGLE_FALLBACK_QUERY_LIMIT);
-        int googleTimeoutMs = Math.min(timeoutMs, GOOGLE_FALLBACK_TIMEOUT_MS);
+        int queryLimit = Math.min(queries.size(), normalizePositive(crawlerSettings.googleFallbackQueryLimit(), 2, 1));
+        int googleTimeoutMs = Math.min(timeoutMs, normalizePositive(crawlerSettings.googleFallbackTimeoutMs(), 5000, 1000));
         for (int index = 0; index < queryLimit; index++) {
             if (candidates.size() >= candidatePoolLimit) {
                 return;
             }
-            collectFromGoogle(queries.get(index), candidates, seenHosts, candidatePoolLimit, googleTimeoutMs, GOOGLE_FALLBACK_PAGE_LIMIT);
+            collectFromGoogle(
+                    queries.get(index),
+                    candidates,
+                    seenHosts,
+                    candidatePoolLimit,
+                    googleTimeoutMs,
+                    normalizePositive(crawlerSettings.googleFallbackPageLimit(), 1, 1)
+            );
         }
     }
 
@@ -587,9 +591,10 @@ public class WorkflowSearchService {
             List<SearchCandidate> candidates,
             Set<String> seenHosts,
             int candidatePoolLimit,
-            int timeoutMs
+            int timeoutMs,
+            int pageLimit
     ) {
-        for (int pageIndex = 0; pageIndex < SEARCH_ENGINE_PAGE_LIMIT; pageIndex++) {
+        for (int pageIndex = 0; pageIndex < pageLimit; pageIndex++) {
             if (candidates.size() >= candidatePoolLimit) {
                 return;
             }
@@ -664,9 +669,10 @@ public class WorkflowSearchService {
             List<SearchCandidate> candidates,
             Set<String> seenHosts,
             int candidatePoolLimit,
-            int timeoutMs
+            int timeoutMs,
+            int pageLimit
     ) {
-        for (int pageIndex = 0; pageIndex < SEARCH_ENGINE_PAGE_LIMIT; pageIndex++) {
+        for (int pageIndex = 0; pageIndex < pageLimit; pageIndex++) {
             if (candidates.size() >= candidatePoolLimit) {
                 return;
             }
@@ -724,11 +730,12 @@ public class WorkflowSearchService {
         Set<String> acceptedHosts = new LinkedHashSet<>();
 
         List<SearchCandidate> sortedCandidates = candidates.stream()
-                .sorted(Comparator.comparingInt((SearchCandidate candidate) -> scoreCandidate(candidate, market, industry, keywords)).reversed())
+                .sorted(Comparator.comparingInt((SearchCandidate candidate) -> scoreCandidate(candidate, market, industry, keywords, crawlerSettings)).reversed())
                 .toList();
 
         int inspectionLimit = Math.min(sortedCandidates.size(), Math.max(searchLimit * 6, 30));
-        ExecutorService executor = Executors.newFixedThreadPool(Math.min(MAX_PARALLEL_INSPECTIONS, Math.max(2, inspectionLimit)));
+        int maxParallelInspections = normalizePositive(crawlerSettings.maxParallelInspections(), 8, 1);
+        ExecutorService executor = Executors.newFixedThreadPool(Math.min(maxParallelInspections, Math.max(2, inspectionLimit)));
         CompletionService<InspectedCandidate> completionService = new ExecutorCompletionService<>(executor);
         int submitted = 0;
 
@@ -785,19 +792,19 @@ public class WorkflowSearchService {
         return leads;
     }
 
-    private int scoreCandidate(SearchCandidate candidate, String market, String industry, String keywords) {
+    private int scoreCandidate(SearchCandidate candidate, String market, String industry, String keywords, SettingsModels.CrawlerSettings crawlerSettings) {
         String host = normalizeHost(hostOf(candidate.url()));
         String combined = (cleanText(candidate.title()) + " " + cleanText(candidate.snippet())).toLowerCase(Locale.ROOT);
         int score = 0;
 
         if (looksLikeCompanyCandidate(host, combined)) {
-            score += 10;
+            score += normalizePositive(crawlerSettings.companySignalWeight(), 8, 1);
         }
         if (matchesMarketSignal(host, combined, market)) {
-            score += 10;
+            score += normalizePositive(crawlerSettings.marketWeight(), 8, 1);
         }
         if (matchesKeywords(industry, keywords, combined)) {
-            score += 12;
+            score += normalizePositive(crawlerSettings.keywordWeight(), 6, 1);
         }
         if (combined.contains("contact") || combined.contains("email")) {
             score += 6;
@@ -1034,7 +1041,7 @@ public class WorkflowSearchService {
         String bestEmail = "";
         int bestScore = Integer.MIN_VALUE;
         for (String email : emails) {
-            int score = scoreEmail(email, host);
+            int score = scoreEmail(email, host, settingsService.getSettings().crawler());
             if (score > bestScore) {
                 bestScore = score;
                 bestEmail = email;
@@ -1043,10 +1050,10 @@ public class WorkflowSearchService {
         return bestEmail;
     }
 
-    private int scoreEmail(String email, String host) {
+    private int scoreEmail(String email, String host, SettingsModels.CrawlerSettings crawlerSettings) {
         int score = 0;
         if (email.endsWith("@" + host)) {
-            score += 10;
+            score += normalizePositive(crawlerSettings.sameDomainWeight(), 10, 1);
         }
         if (!isFreeMail(email)) {
             score += 3;

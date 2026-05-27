@@ -122,7 +122,14 @@ public final class SettingsModels {
 
     public record CrawlerSettings(
             int requestTimeoutMs,
+            int maxSearchDurationMs,
             int candidateLimit,
+            int searchEnginePageLimit,
+            int maxParallelInspections,
+            boolean googleFallbackEnabled,
+            int googleFallbackQueryLimit,
+            int googleFallbackPageLimit,
+            int googleFallbackTimeoutMs,
             String emailExtractionDepth,
             String logMode,
             int sameDomainWeight,
@@ -130,8 +137,25 @@ public final class SettingsModels {
             int keywordWeight,
             int companySignalWeight
     ) {
+        public CrawlerSettings {
+            requestTimeoutMs = requestTimeoutMs <= 0 ? 8000 : requestTimeoutMs;
+            maxSearchDurationMs = maxSearchDurationMs <= 0 ? 300000 : maxSearchDurationMs;
+            candidateLimit = candidateLimit <= 0 ? 36 : candidateLimit;
+            searchEnginePageLimit = searchEnginePageLimit <= 0 ? 2 : searchEnginePageLimit;
+            maxParallelInspections = maxParallelInspections <= 0 ? 8 : maxParallelInspections;
+            googleFallbackQueryLimit = googleFallbackQueryLimit <= 0 ? 2 : googleFallbackQueryLimit;
+            googleFallbackPageLimit = googleFallbackPageLimit <= 0 ? 1 : googleFallbackPageLimit;
+            googleFallbackTimeoutMs = googleFallbackTimeoutMs <= 0 ? 5000 : googleFallbackTimeoutMs;
+            emailExtractionDepth = emailExtractionDepth == null || emailExtractionDepth.isBlank() ? "HOME_AND_CONTACT" : emailExtractionDepth;
+            logMode = logMode == null || logMode.isBlank() ? "summary" : logMode;
+            sameDomainWeight = sameDomainWeight <= 0 ? 10 : sameDomainWeight;
+            marketWeight = marketWeight <= 0 ? 8 : marketWeight;
+            keywordWeight = keywordWeight <= 0 ? 6 : keywordWeight;
+            companySignalWeight = companySignalWeight <= 0 ? 8 : companySignalWeight;
+        }
+
         public static CrawlerSettings defaults() {
-            return new CrawlerSettings(8000, 36, "HOME_AND_CONTACT", "summary", 10, 8, 6, 8);
+            return new CrawlerSettings(8000, 300000, 36, 2, 8, true, 2, 1, 5000, "HOME_AND_CONTACT", "summary", 10, 8, 6, 8);
         }
     }
 

@@ -139,10 +139,17 @@
   }
 
   function bindCrawlerSettings(settings) {
+    document.querySelector("#crawler-log-mode")?.closest(".input-group")?.remove();
     setValue("#crawler-request-timeout-ms", settings.crawler.requestTimeoutMs);
+    setValue("#crawler-max-search-duration-ms", settings.crawler.maxSearchDurationMs);
     setValue("#crawler-candidate-limit", settings.crawler.candidateLimit);
+    setValue("#crawler-search-engine-page-limit", settings.crawler.searchEnginePageLimit);
+    setValue("#crawler-max-parallel-inspections", settings.crawler.maxParallelInspections);
     setValue("#crawler-email-extraction-depth", settings.crawler.emailExtractionDepth);
-    setValue("#crawler-log-mode", settings.crawler.logMode);
+    setValue("#crawler-google-fallback-enabled", String(settings.crawler.googleFallbackEnabled));
+    setValue("#crawler-google-fallback-query-limit", settings.crawler.googleFallbackQueryLimit);
+    setValue("#crawler-google-fallback-page-limit", settings.crawler.googleFallbackPageLimit);
+    setValue("#crawler-google-fallback-timeout-ms", settings.crawler.googleFallbackTimeoutMs);
     setValue("#crawler-same-domain-weight", settings.crawler.sameDomainWeight);
     setValue("#crawler-market-weight", settings.crawler.marketWeight);
     setValue("#crawler-keyword-weight", settings.crawler.keywordWeight);
@@ -154,9 +161,16 @@
         "/api/settings/crawler",
         {
           requestTimeoutMs: numberOf("#crawler-request-timeout-ms", 8000),
+          maxSearchDurationMs: numberOf("#crawler-max-search-duration-ms", 300000),
           candidateLimit: numberOf("#crawler-candidate-limit", 36),
+          searchEnginePageLimit: numberOf("#crawler-search-engine-page-limit", 2),
+          maxParallelInspections: numberOf("#crawler-max-parallel-inspections", 8),
           emailExtractionDepth: valueOf("#crawler-email-extraction-depth"),
-          logMode: valueOf("#crawler-log-mode"),
+          logMode: settings.crawler.logMode,
+          googleFallbackEnabled: settings.crawler.googleFallbackEnabled,
+          googleFallbackQueryLimit: settings.crawler.googleFallbackQueryLimit,
+          googleFallbackPageLimit: settings.crawler.googleFallbackPageLimit,
+          googleFallbackTimeoutMs: settings.crawler.googleFallbackTimeoutMs,
           sameDomainWeight: numberOf("#crawler-same-domain-weight", 10),
           marketWeight: numberOf("#crawler-market-weight", 8),
           keywordWeight: numberOf("#crawler-keyword-weight", 6),

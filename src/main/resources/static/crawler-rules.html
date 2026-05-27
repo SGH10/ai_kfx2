@@ -106,6 +106,18 @@
                     <input class="text-input" id="crawler-request-timeout-ms" type="number" min="1000" value="8000" />
                   </label>
                   <label class="input-group">
+                    <span data-i18n="crawler.field.pageLimit">Search Engine Page Limit</span>
+                    <input class="text-input" id="crawler-search-engine-page-limit" type="number" min="1" value="2" />
+                  </label>
+                  <label class="input-group">
+                    <span data-i18n="crawler.field.parallelInspections">Max Parallel Inspections</span>
+                    <input class="text-input" id="crawler-max-parallel-inspections" type="number" min="1" value="8" />
+                  </label>
+                  <label class="input-group">
+                    <span data-i18n="crawler.field.maxDuration">Max Search Duration (ms)</span>
+                    <input class="text-input" id="crawler-max-search-duration-ms" type="number" min="1000" value="300000" />
+                  </label>
+                  <label class="input-group">
                     <span data-i18n="crawler.field.candidateLimit">候选池大小</span>
                     <input class="text-input" id="crawler-candidate-limit" type="number" min="1" value="36" />
                   </label>
@@ -238,6 +250,30 @@
           "crawler.field.companySignalWeight": "Company Signal Weight"
         }
       };
+    </script>
+    <script>
+      Object.assign(window.pageTranslations["zh-CN"], {
+        "shared.enabled": "启用",
+        "shared.disabled": "关闭",
+        "crawler.field.maxDuration": "搜索最长运行时间（毫秒）",
+        "crawler.field.pageLimit": "搜索引擎翻页深度",
+        "crawler.field.parallelInspections": "并发检查站点数",
+        "crawler.field.googleFallbackEnabled": "Google 回退开关",
+        "crawler.field.googleFallbackQueryLimit": "Google 回退查询数",
+        "crawler.field.googleFallbackPageLimit": "Google 回退翻页数",
+        "crawler.field.googleFallbackTimeout": "Google 回退超时（毫秒）"
+      });
+      Object.assign(window.pageTranslations["en"], {
+        "shared.enabled": "Enabled",
+        "shared.disabled": "Disabled",
+        "crawler.field.maxDuration": "Max Search Duration (ms)",
+        "crawler.field.pageLimit": "Search Engine Page Limit",
+        "crawler.field.parallelInspections": "Max Parallel Inspections",
+        "crawler.field.googleFallbackEnabled": "Google Fallback",
+        "crawler.field.googleFallbackQueryLimit": "Google Fallback Query Limit",
+        "crawler.field.googleFallbackPageLimit": "Google Fallback Page Limit",
+        "crawler.field.googleFallbackTimeout": "Google Fallback Timeout (ms)"
+      });
     </script>
     <script src="/main.js?v=4"></script>
     <script src="/settings.js?v=6"></script>
