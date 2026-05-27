@@ -11,6 +11,11 @@ public class PageController {
         return "forward:/customer-search.html?v=3";
     }
 
+    @GetMapping("/favicon.ico")
+    public String favicon() {
+        return "forward:/favicon.svg";
+    }
+
     @GetMapping("/ai-outreach")
     public String aiOutreachPage() {
         return "forward:/ai-outreach.html?v=3";

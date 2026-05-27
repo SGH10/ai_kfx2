@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class WorkflowExceptionHandler {
@@ -18,9 +19,20 @@ public class WorkflowExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<String> handleNoResource(NoResourceFoundException exception) {
+        String resourcePath = exception.getResourcePath();
+        if (resourcePath != null && resourcePath.endsWith("favicon.ico")) {
+            log.debug("Ignoring browser favicon probe for missing resource: {}", resourcePath);
+        } else {
+            log.warn("Static resource not found: {}", resourcePath);
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Resource not found.");
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleUnexpected(Exception exception) {
         log.error("Unexpected server error", exception);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("服务器内部错误，请查看 IDEA 控制台日志。");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error. Please check server logs.");
     }
 }
