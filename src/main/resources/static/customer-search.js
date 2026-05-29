@@ -173,6 +173,7 @@
 
       const data = await response.json();
       data.timestamp = Date.now();
+      data.requestedLimit = payload.requestedLimit;
       applySearchResponse(data);
       cacheSearchResponse(data);
       saveSearchHistory(data, payload);
@@ -210,7 +211,7 @@
       : "";
     const market = String(marketPreset?.value || "").trim();
     const description = String(targetDescription?.value || "").trim();
-    const requestedLimit = Number(requestedLimitInput?.value || searchState.requestedLimit || 50);
+    const requestedLimit = normalizeRequestedLimit(requestedLimitInput?.value, searchState.requestedLimit, 50);
     const depth = String(searchDepth?.value || "standard");
 
     let resolvedIndustry = industry;
@@ -241,7 +242,16 @@
 
   function cacheSearchResponse(data) {
     try {
-      localStorage.setItem(searchStorageKey, JSON.stringify(data));
+      const cachedData = {
+        ...data,
+        requestedLimit: normalizeRequestedLimit(
+          data?.requestedLimit,
+          searchState.requestedLimit,
+          data?.stats?.totalCustomers,
+          data?.customers?.length
+        )
+      };
+      localStorage.setItem(searchStorageKey, JSON.stringify(cachedData));
     } catch (error) {
       console.error("Failed to cache search response:", error);
     }
@@ -276,6 +286,9 @@
   function applySearchResponse(data) {
     searchState.customers = Array.isArray(data.customers) ? data.customers : [];
     searchState.selectedIds = new Set(searchState.customers.map((customer) => customer.id));
+    syncRequestedLimit(
+      resolveResponseRequestedLimit(data)
+    );
 
     searchSummary.textContent = data.summary || "已完成搜索。";
     if (searchTime) {
@@ -545,6 +558,33 @@
     return text || fallbackText;
   }
 
+  function normalizeRequestedLimit(...values) {
+    for (const value of values) {
+      const number = Number(value);
+      if (Number.isFinite(number) && number > 0) {
+        return Math.round(number);
+      }
+    }
+    return 50;
+  }
+
+  function syncRequestedLimit(value) {
+    searchState.requestedLimit = normalizeRequestedLimit(value, searchState.requestedLimit, 50);
+    if (requestedLimitInput) {
+      requestedLimitInput.value = String(searchState.requestedLimit);
+    }
+  }
+
+  function resolveResponseRequestedLimit(data) {
+    return normalizeRequestedLimit(
+      data?.requestedLimit,
+      data?.config?.requestedLimit,
+      data?.searchConfig?.requestedLimit,
+      searchState.requestedLimit,
+      50
+    );
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -643,6 +683,7 @@
           companySize: payload.companySize,
           requestedLimit: payload.requestedLimit
         },
+        requestedLimit: payload.requestedLimit,
         resultCount: data.customers?.length || 0,
         customers: data.customers || []
       };
@@ -788,9 +829,18 @@
     const item = list.find((h) => h.id === id);
     if (!item) return;
 
+    const requestedLimit = normalizeRequestedLimit(
+      item.requestedLimit,
+      item.config?.requestedLimit,
+      searchState.requestedLimit,
+      50
+    );
+    syncRequestedLimit(requestedLimit);
+
     const data = {
       summary: item.summary,
       timestamp: item.timestamp,
+      requestedLimit,
       stats: {
         totalCustomers: item.resultCount,
         emailCount: item.resultCount,

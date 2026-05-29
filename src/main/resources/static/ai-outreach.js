@@ -301,9 +301,10 @@
             <path d="M16 11c1.66 0 2.99-1.57 2.99-3.5S17.66 4 16 4s-3 1.57-3 3.5 1.34 3.5 3 3.5ZM8 11c1.66 0 2.99-1.57 2.99-3.5S9.66 4 8 4 5 5.57 5 7.5 6.34 11 8 11Zm0 2c-2.33 0-7 1.17-7 3.5V20h14v-3.5C15 14.17 10.33 13 8 13Zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.96 1.97 3.45V20h6v-3.5c0-2.33-4.67-3.5-7-3.5Z" />
           </svg>
         </span>
-        <h3>${t("outreach.empty.noCustomerTitle", "暂无客户")}</h3>
-        <p>${t("outreach.empty.noCustomerCopy", "从客户搜索系统导入，或手动输入")}</p>
+        <h3 data-i18n="outreach.empty.noCustomerTitle">${t("outreach.empty.noCustomerTitle", "\u6682\u65e0\u5ba2\u6237")}</h3>
+        <p data-i18n="outreach.empty.noCustomerCopy">${t("outreach.empty.noCustomerCopy", "\u4ece\u5ba2\u6237\u641c\u7d22\u7cfb\u7edf\u5bfc\u5165\uff0c\u6216\u624b\u52a8\u8f93\u5165")}</p>
       `;
+      window.applyPageTranslations?.(window.leadflowLocale?.locale || "zh-CN");
       recipientEmailPreview.value = "contact@example.com";
       return;
     }
