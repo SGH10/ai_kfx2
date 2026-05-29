@@ -168,10 +168,20 @@ public class WorkflowSearchService {
         SettingsModels.SearchSettings searchSettings = settings.search();
         SettingsModels.CrawlerSettings crawlerSettings = settings.crawler();
 
-        String industry = normalizeInput(fallback(request.industry(), "industrial equipment"));
+        String industry = normalizeInput(fallback(request.industry(), ""));
+        // "全部行业" means no industry filter — treat as generic/broad search
+        if ("全部行业".equals(industry) || "all industries".equalsIgnoreCase(industry)) {
+            industry = "";
+        }
         String market = normalizeMarket(fallback(request.market(), "China"));
         String keywords = normalizeInput(fallback(request.keywords(), ""));
-        String companySize = normalizeInput(fallback(request.companySize(), "50-200"));
+        String rawCompanySize = normalizeInput(fallback(request.companySize(), ""));
+        // Normalize "全部规模" / empty to ALL so it doesn't get injected into queries
+        String companySize = (rawCompanySize.isBlank()
+                || "全部规模".equals(rawCompanySize)
+                || "all sizes".equalsIgnoreCase(rawCompanySize)
+                || "all".equalsIgnoreCase(rawCompanySize))
+                ? "ALL" : rawCompanySize;
 
         int leadLimit = normalizePositive(request.requestedLimit(), searchSettings.resultsPerPage(), 10);
         int candidatePoolLimit = Math.max(
@@ -222,7 +232,12 @@ public class WorkflowSearchService {
 
     private List<String> buildSearchQueries(String industry, String market, String keywords, String companySize) {
         LinkedHashSet<String> queries = new LinkedHashSet<>();
-        List<String> industryHints = buildSearchHints(industry);
+
+        // "全部行业" is normalized to empty — use generic terms so queries stay useful
+        boolean broadIndustry = industry.isBlank();
+        String effectiveIndustry = broadIndustry ? "manufacturer" : industry;
+
+        List<String> industryHints = buildSearchHints(effectiveIndustry);
         List<String> keywordHints = buildSearchHints(keywords);
         boolean hasKeywordHints = !keywordHints.isEmpty();
         String normalizedIndustry = normalizeSearchPhrase(industry);
@@ -256,6 +271,19 @@ public class WorkflowSearchService {
                 : "";
 
         if ("China".equalsIgnoreCase(market)) {
+            if (broadIndustry) {
+                // No industry filter: use generic company queries
+                queries.add(joinQuery("site:.cn", primaryKeywordHint, "manufacturer", "official website"));
+                queries.add(joinQuery("site:.com.cn", primaryKeywordHint, "company"));
+                queries.add(joinQuery(primaryKeywordHint, "manufacturer", "contact email"));
+                queries.add(joinQuery(primaryKeywordHint, "factory", "contact us"));
+                queries.add(joinQuery(primaryKeywordHint, "supplier", "sales email"));
+                queries.add(joinQuery(primaryKeywordHint, "company profile"));
+                queries.add(joinQuery(nativeKeywordHint, "官网"));
+                queries.add(joinQuery(nativeKeywordHint, "厂家", "联系方式"));
+                queries.add(joinQuery(nativeKeywordHint, "公司", "邮箱"));
+                queries.add(joinQuery(nativeKeywordHint, "有限公司"));
+            } else {
             queries.add(joinQuery("site:.cn", primaryKeywordHint, primaryIndustryHint, "manufacturer", "official website"));
             queries.add(joinQuery("site:.com.cn", primaryKeywordHint, primaryIndustryHint, "company"));
             queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, "manufacturer", "contact email"));
@@ -307,6 +335,7 @@ public class WorkflowSearchService {
                 queries.add(joinQuery("数控", "机床", "厂家"));
                 queries.add(joinQuery("加工中心", "厂家"));
             }
+            } // end else (specific industry)
             if (!"ALL".equalsIgnoreCase(companySize)) {
                 queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, companySize, "company"));
             }
@@ -314,26 +343,28 @@ public class WorkflowSearchService {
         }
 
         if ("ALL".equalsIgnoreCase(market)) {
-            queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, "manufacturer", "official website"));
-            queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, "supplier", "contact"));
-            queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, "factory", "email"));
-            queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, "company profile"));
-            queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, "sales email"));
+            String ih = broadIndustry ? "" : primaryIndustryHint;
+            queries.add(joinQuery(primaryKeywordHint, ih, "manufacturer", "official website"));
+            queries.add(joinQuery(primaryKeywordHint, ih, "supplier", "contact"));
+            queries.add(joinQuery(primaryKeywordHint, ih, "factory", "email"));
+            queries.add(joinQuery(primaryKeywordHint, ih, "company profile"));
+            queries.add(joinQuery(primaryKeywordHint, ih, "sales email"));
             if (!"ALL".equalsIgnoreCase(companySize)) {
-                queries.add(joinQuery(primaryKeywordHint, primaryIndustryHint, companySize, "company"));
+                queries.add(joinQuery(primaryKeywordHint, ih, companySize, "company"));
             }
             return new ArrayList<>(queries);
         }
 
         String marketAlias = marketAlias(market);
         String marketSite = marketSite(market);
-        queries.add(joinQuery(marketSite, primaryKeywordHint, primaryIndustryHint, "manufacturer", "official website"));
-        queries.add(joinQuery(marketAlias, primaryKeywordHint, primaryIndustryHint, "supplier", "contact"));
-        queries.add(joinQuery(marketAlias, primaryKeywordHint, primaryIndustryHint, "factory", "email"));
-        queries.add(joinQuery(marketAlias, primaryKeywordHint, primaryIndustryHint, "company profile"));
-        queries.add(joinQuery(marketAlias, primaryKeywordHint, primaryIndustryHint, "sales email"));
+        String ih = broadIndustry ? "" : primaryIndustryHint;
+        queries.add(joinQuery(marketSite, primaryKeywordHint, ih, "manufacturer", "official website"));
+        queries.add(joinQuery(marketAlias, primaryKeywordHint, ih, "supplier", "contact"));
+        queries.add(joinQuery(marketAlias, primaryKeywordHint, ih, "factory", "email"));
+        queries.add(joinQuery(marketAlias, primaryKeywordHint, ih, "company profile"));
+        queries.add(joinQuery(marketAlias, primaryKeywordHint, ih, "sales email"));
         if (!"ALL".equalsIgnoreCase(companySize)) {
-            queries.add(joinQuery(marketAlias, primaryKeywordHint, primaryIndustryHint, companySize, "company"));
+            queries.add(joinQuery(marketAlias, primaryKeywordHint, ih, companySize, "company"));
         }
         return new ArrayList<>(queries);
     }
@@ -1273,10 +1304,14 @@ public class WorkflowSearchService {
     }
 
     private boolean isBroadIndustry(String industry) {
+        if (industry == null || industry.isBlank()) {
+            return true; // "\u5168\u90e8\u884c\u4e1a" was normalized to empty
+        }
         String normalized = normalizeSearchPhrase(industry);
         return normalized.contains("industrial equipment")
                 || normalized.contains("\u5de5\u4e1a\u8bbe\u5907")
-                || normalized.contains("machinery");
+                || normalized.contains("machinery")
+                || normalized.contains("manufacturer");
     }
 
     private String inferCountry(String host, String fallbackMarket) {
