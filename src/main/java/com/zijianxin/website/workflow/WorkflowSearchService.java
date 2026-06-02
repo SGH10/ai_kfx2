@@ -145,6 +145,17 @@ public class WorkflowSearchService {
             "主要", "需要", "寻找", "查找", "目标", "客户", "公司", "企业", "行业", "市场", "地区"
     );
 
+    private static final Set<String> JUNK_PAGE_TITLES = Set.of(
+            "联系我们", "关于我们", "首页", "产品中心", "新闻资讯", "新闻中心", "联系方式",
+            "公司简介", "解决方案", "服务支持", "下载中心", "网站地图",
+            "contact us", "about us", "home", "products", "news", "contact",
+            "about", "services", "support", "downloads", "sitemap", "search",
+            "index", "welcome", "main", "page not found", "404", "error"
+    );
+
+    private static final java.util.regex.Pattern CHINESE_COMPANY_SUFFIX_PATTERN =
+            java.util.regex.Pattern.compile("^(.+?(?:有限公司|股份有限公司|集团公司|集团有限公司|控股有限公司|科技有限公司))");
+
     private static final String SERPAPI_BASE_URL = "https://serpapi.com/search";
 
     private final SettingsService settingsService;
@@ -215,8 +226,8 @@ public class WorkflowSearchService {
         );
 
         String summary = leads.isEmpty()
-                ? "No matching company websites with useful contact data were found from live public web search."
-                : "Collected " + leads.size() + " live company leads from public search results.";
+                ? "未从公开搜索结果中找到含有效联系信息的匹配公司。"
+                : "已从公开搜索结果中收集到 " + leads.size() + " 条企业线索。";
 
         session.log("Search finished with " + leads.size() + " leads.");
 
@@ -1127,22 +1138,44 @@ public class WorkflowSearchService {
 
     private String extractCompanyName(Document document, SearchCandidate candidate, String host) {
         String ogName = metaContent(document, "meta[property=og:site_name]");
-        if (!ogName.isBlank()) {
-            return ogName;
+        if (!ogName.isBlank() && isLikelyCompanyName(ogName)) {
+            return cleanCompanyName(ogName);
         }
         String appName = metaContent(document, "meta[name=application-name]");
-        if (!appName.isBlank()) {
-            return appName;
+        if (!appName.isBlank() && isLikelyCompanyName(appName)) {
+            return cleanCompanyName(appName);
         }
         String title = simplifyTitle(document.title());
-        if (!title.isBlank()) {
-            return title;
+        if (!title.isBlank() && isLikelyCompanyName(title)) {
+            return cleanCompanyName(title);
         }
         String candidateTitle = simplifyTitle(candidate.title());
-        if (!candidateTitle.isBlank()) {
-            return candidateTitle;
+        if (!candidateTitle.isBlank() && isLikelyCompanyName(candidateTitle)) {
+            return cleanCompanyName(candidateTitle);
         }
         return host;
+    }
+
+    private boolean isLikelyCompanyName(String name) {
+        if (name == null || name.isBlank()) return false;
+        String lower = name.toLowerCase(java.util.Locale.ROOT).trim();
+        if (JUNK_PAGE_TITLES.contains(lower)) return false;
+        if (name.trim().length() > 80) return false;
+        return true;
+    }
+
+    private String cleanCompanyName(String name) {
+        String trimmed = name.trim();
+        // 对中文名尝试截取到公司后缀（有限公司、集团等）
+        java.util.regex.Matcher m = CHINESE_COMPANY_SUFFIX_PATTERN.matcher(trimmed);
+        if (m.find()) {
+            return m.group(1);
+        }
+        // 超长则截断
+        if (trimmed.length() > 60) {
+            return trimmed.substring(0, 60).trim();
+        }
+        return trimmed;
     }
 
     private String extractContactName(Document document, Document contactDocument, String email) {
@@ -1517,7 +1550,15 @@ public class WorkflowSearchService {
         if (normalized.isBlank()) {
             return "";
         }
-        return normalized.split("\\s*[\\-|/|｜|–|—]\\s*")[0].trim();
+        String[] parts = normalized.split("\\s*[-/｜–—·_]\\s*");
+        // 优先选取最像公司名的段落：长度适中（4-60字符）且是第一段
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (trimmed.length() >= 4 && trimmed.length() <= 60) {
+                return trimmed;
+            }
+        }
+        return parts[0].trim();
     }
 
     private String normalizeInput(String value) {

@@ -450,12 +450,18 @@
               </div>
             </td>
             <td>
-              ${escapeHtml(displayValue(customer.contactName, "Business Contact"))}<br />
-              <span class="table-note">${escapeHtml(displayValue(customer.email, "未找到公开邮箱"))}</span>
+              ${customer.email
+                ? `<span class="table-email">${escapeHtml(customer.email)}</span>`
+                : `<span class="table-note">未找到公开邮箱</span>`}
             </td>
             <td>${escapeHtml(customer.channel || "官网")}</td>
-            <td><span class="table-note">${escapeHtml(customer.fitNote || "candidate website")}</span></td>
-            <td><span class="table-note">查看</span></td>
+            <td>${renderFitBadge(customer)}</td>
+            <td>
+              <div class="ops-cell">
+                <button type="button" class="btn-view" data-lead-id="${escapeHtml(customer.id)}">查看</button>
+                <button type="button" class="btn-outreach-single" data-lead-id="${escapeHtml(customer.id)}">生成开发信</button>
+              </div>
+            </td>
           </tr>
         `
       )
@@ -469,13 +475,6 @@
     }
     if (exportButton) {
       exportButton.disabled = selectedCustomers.length === 0;
-    }
-    if (pushButton) {
-      pushButton.disabled = selectedCustomers.length === 0;
-    }
-
-    if (selectAll) {
-      selectAll.checked = selectedCustomers.length > 0 && selectedCustomers.length === searchState.customers.length;
     }
   }
 
@@ -551,6 +550,15 @@
   function csvEscape(value) {
     const content = String(value ?? "");
     return `"${content.replaceAll("\"", "\"\"")}"`;
+  }
+
+  function renderFitBadge(customer) {
+    const hasContact = !!(customer.contactName && customer.contactName.trim());
+    const hasEmail = !!(customer.email && customer.email.trim());
+    const count = (hasContact ? 1 : 0) + (hasEmail ? 1 : 0);
+    if (count === 2) return '<span class="fit-badge fit-high">高</span>';
+    if (count === 1) return '<span class="fit-badge fit-mid">较高</span>';
+    return '<span class="fit-badge fit-low">低</span>';
   }
 
   function displayValue(value, fallbackText) {
@@ -871,4 +879,118 @@
       historyToggle?.setAttribute("aria-expanded", "false");
     }
   }
+
+  document.querySelectorAll(".tab-item[data-scroll-to]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = document.getElementById(btn.dataset.scrollTo);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+    });
+  });
+
+  // ── 每行"生成开发信"按钮 ──────────────────────────────────────
+  resultsBody?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-outreach-single");
+    if (!btn) return;
+    const leadId = btn.dataset.leadId;
+    const lead = searchState.customers.find((c) => c.id === leadId);
+    if (!lead) return;
+    localStorage.setItem(selectedCustomersKey, JSON.stringify([lead]));
+    localStorage.setItem(outreachImportFlagKey, "1");
+    window.location.href = "/ai-outreach?import=1";
+  });
+
+  // ── 客户详情弹窗 ──────────────────────────────────────────────
+  const leadModal = document.getElementById("lead-modal");
+  const leadModalClose = document.getElementById("lead-modal-close");
+  const modalAvatar = document.getElementById("modal-avatar");
+  const modalTitle = document.getElementById("lead-modal-title");
+  const modalWebsite = document.getElementById("modal-website");
+  const modalOpenWebsite = document.getElementById("modal-open-website");
+  const modalCountry = document.getElementById("modal-country");
+  const modalContact = document.getElementById("modal-contact");
+  const modalEmail = document.getElementById("modal-email");
+  const modalChannel = document.getElementById("modal-channel");
+  const modalFit = document.getElementById("modal-fit");
+  const modalAddOutreach = document.getElementById("modal-add-outreach");
+  const modalRowCountry = document.getElementById("modal-row-country");
+  const modalRowContact = document.getElementById("modal-row-contact");
+  const modalRowEmail = document.getElementById("modal-row-email");
+  const modalRowChannel = document.getElementById("modal-row-channel");
+  const modalRowFit = document.getElementById("modal-row-fit");
+
+  let currentModalLeadId = null;
+
+  function setModalRow(row, valueEl, value) {
+    if (value) {
+      row.style.display = "";
+      valueEl.textContent = value;
+    } else {
+      row.style.display = "none";
+    }
+  }
+
+  function openLeadModal(lead) {
+    currentModalLeadId = lead.id;
+    const name = lead.companyName || "未知公司";
+    modalTitle.textContent = name;
+    modalAvatar.textContent = name.charAt(0).toUpperCase();
+
+    const site = lead.website || "";
+    modalWebsite.href = site;
+    modalWebsite.textContent = site;
+    if (modalOpenWebsite) modalOpenWebsite.href = site;
+
+    setModalRow(modalRowCountry, modalCountry, lead.country);
+    setModalRow(modalRowContact, modalContact, lead.contactName);
+
+    const email = lead.email || "";
+    if (email) {
+      modalRowEmail.style.display = "";
+      modalEmail.href = `mailto:${email}`;
+      modalEmail.textContent = email;
+    } else {
+      modalRowEmail.style.display = "none";
+    }
+
+    setModalRow(modalRowChannel, modalChannel, lead.channel);
+    setModalRow(modalRowFit, modalFit, lead.fitNote);
+
+    leadModal.classList.remove("is-hidden");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeLeadModal() {
+    leadModal.classList.add("is-hidden");
+    document.body.style.overflow = "";
+    currentModalLeadId = null;
+  }
+
+  leadModalClose?.addEventListener("click", closeLeadModal);
+
+  leadModal?.addEventListener("click", (e) => {
+    if (e.target === leadModal) closeLeadModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && leadModal && !leadModal.classList.contains("is-hidden")) closeLeadModal();
+  });
+
+  resultsBody?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-view");
+    if (!btn) return;
+    const lead = searchState.customers.find((c) => c.id === btn.dataset.leadId);
+    if (lead) openLeadModal(lead);
+  });
+
+  modalAddOutreach?.addEventListener("click", () => {
+    if (!currentModalLeadId) return;
+    const lead = searchState.customers.find((c) => c.id === currentModalLeadId);
+    if (!lead) return;
+    closeLeadModal();
+    localStorage.setItem(selectedCustomersKey, JSON.stringify([lead]));
+    localStorage.setItem(outreachImportFlagKey, "1");
+    window.location.href = "/ai-outreach?import=1";
+  });
 })();
