@@ -213,6 +213,15 @@
       applyPageLocale(event.detail?.locale || "zh-CN");
     });
 
+    // 处理浏览器 bfcache 恢复：重新读取 localStorage 刷新客户列表
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) {
+        hydrateRecipients();
+        renderRecipients();
+        updateSendButtonState();
+      }
+    });
+
     syncLanguagePillsFromSelect();
     applyPageLocale(window.leadflowLocale?.locale || "zh-CN");
     toggleDraftEmptyState();
@@ -235,7 +244,7 @@
     const importPending = localStorage.getItem(outreachImportFlagKey) === "1";
     const selectedCustomers = readJsonStorage(selectedCustomersKey);
 
-    if (isImportEntry && importPending && Array.isArray(selectedCustomers) && selectedCustomers.length > 0) {
+    if (importPending && Array.isArray(selectedCustomers) && selectedCustomers.length > 0) {
       outreachState.recipients = selectedCustomers;
     } else {
       outreachState.recipients = [];
@@ -243,9 +252,7 @@
     }
 
     localStorage.removeItem(outreachImportFlagKey);
-    if (isImportEntry) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    window.history.replaceState({}, document.title, window.location.pathname);
     outreachState.selectedIds = new Set(outreachState.recipients.map((recipient) => recipient.id));
   }
 
@@ -358,8 +365,8 @@
       fitNote: "Manual input"
     };
 
-    outreachState.recipients.unshift(customer);
-    outreachState.selectedIds.add(customer.id);
+    outreachState.recipients = [customer];
+    outreachState.selectedIds = new Set([customer.id]);
     localStorage.setItem(selectedCustomersKey, JSON.stringify(outreachState.recipients));
     renderRecipients();
     updateSendButtonState();

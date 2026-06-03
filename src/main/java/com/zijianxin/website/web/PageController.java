@@ -1,5 +1,6 @@
 package com.zijianxin.website.web;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
@@ -7,8 +8,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class PageController {
 
     @GetMapping("/customer-search")
-    public String customerSearchPage() {
-        return "forward:/customer-search.html?v=3";
+    public String customerSearchPage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/customer-search.html";
     }
 
     @GetMapping("/favicon.ico")
@@ -17,32 +19,43 @@ public class PageController {
     }
 
     @GetMapping("/ai-outreach")
-    public String aiOutreachPage() {
-        return "forward:/ai-outreach.html?v=3";
+    public String aiOutreachPage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/ai-outreach.html";
     }
 
     @GetMapping("/crawler-settings")
-    public String crawlerSettingsPage() {
-        return "forward:/crawler-settings.html?v=3";
+    public String crawlerSettingsPage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/crawler-settings.html";
     }
 
     @GetMapping("/ai-settings")
-    public String aiSettingsPage() {
-        return "forward:/ai-settings.html?v=3";
+    public String aiSettingsPage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/ai-settings.html";
     }
 
     @GetMapping("/mail-settings")
-    public String mailSettingsPage() {
-        return "forward:/mail-settings.html?v=3";
+    public String mailSettingsPage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/mail-settings.html";
     }
 
     @GetMapping("/general-settings")
-    public String generalSettingsPage() {
-        return "forward:/general-settings.html?v=3";
+    public String generalSettingsPage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/general-settings.html";
     }
 
     @GetMapping("/crawler-rules")
-    public String crawlerRulesPage() {
-        return "forward:/crawler-rules.html?v=3";
+    public String crawlerRulesPage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/crawler-rules.html";
+    }
+
+    private void noCache(HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
     }
 }

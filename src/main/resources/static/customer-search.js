@@ -508,7 +508,7 @@
     const selectedCustomers = getSelectedCustomers();
     localStorage.setItem(selectedCustomersKey, JSON.stringify(selectedCustomers));
     localStorage.setItem(outreachImportFlagKey, "1");
-    window.location.href = "/ai-outreach?import=1";
+    window.location.href = "/ai-outreach?t=" + Date.now();
   }
 
   function handleResultSelection(event) {
@@ -898,7 +898,7 @@
     if (!lead) return;
     localStorage.setItem(selectedCustomersKey, JSON.stringify([lead]));
     localStorage.setItem(outreachImportFlagKey, "1");
-    window.location.href = "/ai-outreach?import=1";
+    window.location.href = "/ai-outreach?t=" + Date.now();
   });
 
   // ── 客户详情弹窗 ──────────────────────────────────────────────
@@ -991,6 +991,6 @@
     closeLeadModal();
     localStorage.setItem(selectedCustomersKey, JSON.stringify([lead]));
     localStorage.setItem(outreachImportFlagKey, "1");
-    window.location.href = "/ai-outreach?import=1";
+    window.location.href = "/ai-outreach?t=" + Date.now();
   });
 })();
