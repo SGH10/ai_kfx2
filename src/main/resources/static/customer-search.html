@@ -169,7 +169,7 @@
               <div>
                 <h2 data-i18n="search.progressTitle">AI客户搜索进度</h2>
                 <p id="search-time" class="search-time"></p>
-                <p id="search-summary" class="summary-copy">还没有结果，先运行一次客户搜索。</p>
+                <p id="search-summary" class="summary-copy" data-i18n="search.summary.initial">还没有结果，先运行一次客户搜索。</p>
               </div>
               <span id="search-status-chip" class="status-chip pending" data-i18n="search.status.pending">等待开始</span>
             </div>
@@ -272,29 +272,29 @@
         </div>
         <div class="lead-modal-body">
           <div class="lead-modal-row" id="modal-row-country">
-            <span class="lead-modal-label">国家/地区</span>
+            <span class="lead-modal-label" data-i18n="search.modal.country">国家/地区</span>
             <span class="lead-modal-value" id="modal-country"></span>
           </div>
           <div class="lead-modal-row" id="modal-row-contact">
-            <span class="lead-modal-label">联系人</span>
+            <span class="lead-modal-label" data-i18n="search.modal.contact">联系人</span>
             <span class="lead-modal-value" id="modal-contact"></span>
           </div>
           <div class="lead-modal-row" id="modal-row-email">
-            <span class="lead-modal-label">邮箱</span>
+            <span class="lead-modal-label" data-i18n="search.modal.email">邮箱</span>
             <a class="lead-modal-value lead-modal-email" id="modal-email" href="#"></a>
           </div>
           <div class="lead-modal-row" id="modal-row-channel">
-            <span class="lead-modal-label">来源渠道</span>
+            <span class="lead-modal-label" data-i18n="search.modal.channel">来源渠道</span>
             <span class="lead-modal-value" id="modal-channel"></span>
           </div>
           <div class="lead-modal-row" id="modal-row-fit">
-            <span class="lead-modal-label">匹配说明</span>
+            <span class="lead-modal-label" data-i18n="search.modal.fit">匹配说明</span>
             <span class="lead-modal-value" id="modal-fit"></span>
           </div>
         </div>
         <div class="lead-modal-footer">
-          <a id="modal-open-website" class="action-button ghost" href="#" target="_blank" rel="noreferrer">访问官网</a>
-          <button type="button" id="modal-add-outreach" class="action-button orange">加入开发信</button>
+          <a id="modal-open-website" class="action-button ghost" href="#" target="_blank" rel="noreferrer" data-i18n="search.modal.openWebsite">访问官网</a>
+          <button type="button" id="modal-add-outreach" class="action-button orange" data-i18n="search.modal.addOutreach">加入开发信</button>
         </div>
       </div>
     </div>
@@ -339,6 +339,15 @@
           "search.tab.result": "搜索结果",
           "search.progressTitle": "AI客户搜索进度",
           "search.status.pending": "等待开始",
+          "search.status.running": "搜索中...",
+          "search.status.complete": "已完成",
+          "search.status.noResults": "无结果",
+          "search.status.failed": "搜索失败",
+          "search.status.restored": "已恢复",
+          "search.summary.initial": "还没有结果，先运行一次客户搜索。",
+          "search.summary.running": "正在抓取客户线索，请稍候...",
+          "search.summary.complete": "已完成搜索。",
+          "search.summary.collected": "已从公开搜索结果中收集到 {count} 条企业线索。",
           "search.metric.total": "目标数量",
           "search.metric.found": "已找到",
           "search.metric.validated": "已验证",
@@ -353,16 +362,43 @@
           "search.table.channel": "社交媒体",
           "search.table.fit": "匹配度",
           "search.table.action": "操作",
+          "search.table.noEmail": "未找到公开邮箱",
+          "search.table.officialWebsite": "官网",
+          "search.table.view": "查看",
+          "search.table.createOutreach": "生成开发信",
+          "search.table.fitHigh": "高",
+          "search.table.fitMedium": "较高",
+          "search.table.fitLow": "低",
           "search.emptyTitle": "开始搜索客户",
           "search.emptyCopy": "在左侧配置搜索条件，点击“开始AI搜索”按钮后，客户结果会在下方表格中出现。",
           "search.logTitle": "运行日志",
           "search.logCopy": "展示搜索入口请求、站点识别、公开邮箱提取、筛选过滤与异常回退摘要。",
           "search.logEmpty": "等待你启动第一次客户搜索。",
+          "search.log.noNew": "当前没有新的运行日志。",
+          "search.log.runningTime": "进行中",
+          "search.log.failedTime": "失败",
+          "search.log.runningRequest": "正在根据左侧配置组装真实搜索请求...",
+          "search.log.runningExtract": "随后会过滤站点、提取邮箱并整理匹配客户...",
           "search.history.title": "搜索历史",
           "search.history.clearAll": "清空",
           "search.history.empty": "暂无搜索历史",
           "search.history.restore": "恢复",
-          "search.history.resultCount": "{count} 位客户"
+          "search.history.resultCount": "{count} 位客户",
+          "search.error.timeout": "搜索耗时较长，请稍后刷新页面查看结果。",
+          "search.error.failed": "客户搜索失败，请检查服务状态后重试。",
+          "search.csv.company": "公司名称",
+          "search.csv.contact": "联系方式",
+          "search.csv.channel": "社交媒体",
+          "search.csv.fit": "匹配度",
+          "search.csv.website": "官网",
+          "search.modal.country": "国家/地区",
+          "search.modal.contact": "联系人",
+          "search.modal.email": "邮箱",
+          "search.modal.channel": "来源渠道",
+          "search.modal.fit": "匹配说明",
+          "search.modal.openWebsite": "访问官网",
+          "search.modal.addOutreach": "加入开发信",
+          "search.modal.unknownCompany": "未知公司"
         },
         "en": {
           "__title": "Customer Search | One Minute Tech",
@@ -402,6 +438,15 @@
           "search.tab.result": "Results",
           "search.progressTitle": "AI Customer Search Progress",
           "search.status.pending": "Waiting",
+          "search.status.running": "Searching...",
+          "search.status.complete": "Complete",
+          "search.status.noResults": "No Results",
+          "search.status.failed": "Search Failed",
+          "search.status.restored": "Restored",
+          "search.summary.initial": "No results yet. Run a customer search first.",
+          "search.summary.running": "Collecting customer leads. Please wait...",
+          "search.summary.complete": "Search complete.",
+          "search.summary.collected": "Collected {count} company leads from public search results.",
           "search.metric.total": "Target Count",
           "search.metric.found": "Found",
           "search.metric.validated": "Validated",
@@ -416,20 +461,47 @@
           "search.table.channel": "Channel",
           "search.table.fit": "Fit",
           "search.table.action": "Action",
+          "search.table.noEmail": "No public email found",
+          "search.table.officialWebsite": "Official website",
+          "search.table.view": "View",
+          "search.table.createOutreach": "Create Outreach",
+          "search.table.fitHigh": "High",
+          "search.table.fitMedium": "Medium",
+          "search.table.fitLow": "Low",
           "search.emptyTitle": "Start Searching Customers",
           "search.emptyCopy": "Set the search conditions on the left. After you click Start AI Search, the customer results will appear below.",
           "search.logTitle": "Run Logs",
           "search.logCopy": "Shows request entry points, site identification, public email extraction, filtering, and fallback summaries.",
           "search.logEmpty": "Waiting for you to launch the first customer search.",
+          "search.log.noNew": "No new run logs yet.",
+          "search.log.runningTime": "Running",
+          "search.log.failedTime": "Failed",
+          "search.log.runningRequest": "Building the live search request from the left-side settings...",
+          "search.log.runningExtract": "Filtering sites, extracting emails, and organizing matched customers...",
           "search.history.title": "Search History",
           "search.history.clearAll": "Clear All",
           "search.history.empty": "No search history yet",
           "search.history.restore": "Restore",
-          "search.history.resultCount": "{count} leads"
+          "search.history.resultCount": "{count} leads",
+          "search.error.timeout": "The search is taking longer than expected. Refresh later to check results.",
+          "search.error.failed": "Customer search failed. Check the service status and try again.",
+          "search.csv.company": "Company Name",
+          "search.csv.contact": "Contact",
+          "search.csv.channel": "Channel",
+          "search.csv.fit": "Fit",
+          "search.csv.website": "Website",
+          "search.modal.country": "Country / Region",
+          "search.modal.contact": "Contact",
+          "search.modal.email": "Email",
+          "search.modal.channel": "Source Channel",
+          "search.modal.fit": "Fit Note",
+          "search.modal.openWebsite": "Visit Website",
+          "search.modal.addOutreach": "Add to Outreach",
+          "search.modal.unknownCompany": "Unknown Company"
         }
       };
     </script>
     <script src="/main.js?v=7"></script>
-    <script src="/customer-search.js?v=27"></script>
+    <script src="/customer-search.js?v=28"></script>
   </body>
 </html>

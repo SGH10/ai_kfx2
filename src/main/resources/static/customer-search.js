@@ -46,10 +46,164 @@
     requestedLimit: 50,
     maxSearchDurationMs: 300000,
     startTime: 0,
-    timerInterval: null
+    timerInterval: null,
+    lastResponse: null,
+    statusKey: "search.status.pending",
+    statusType: "pending"
   };
 
   const progressTrack = document.querySelector(".progress-track");
+
+  function currentLocale() {
+    return typeof window.leadflowLocale?.locale === "string" ? window.leadflowLocale.locale : "zh-CN";
+  }
+
+  function t(key, params = {}) {
+    const locale = currentLocale();
+    const messages = window.pageTranslations || {};
+    const dict = messages[locale] || messages["zh-CN"] || {};
+    const fallback = messages["zh-CN"] || {};
+    const value = dict[key] || fallback[key] || key;
+    return String(value).replace(/\{(\w+)\}/g, (_, name) => params[name] ?? "");
+  }
+
+  function localizeSearchText(text, data = null) {
+    const raw = String(text || "").trim();
+    const locale = currentLocale();
+    if (!raw) {
+      return "";
+    }
+    if (locale !== "en") {
+      return raw;
+    }
+
+    const collectedMatch = raw.match(/已从公开搜索结果中收集到\s*(\d+)\s*条企业线索/);
+    if (collectedMatch) {
+      return t("search.summary.collected", { count: collectedMatch[1] });
+    }
+    if (raw === "已完成搜索。") {
+      return buildCompletedSummary(data);
+    }
+    if (raw === "正在抓取客户线索，请稍候...") {
+      return t("search.summary.running");
+    }
+    if (raw === "搜索耗时较长，请稍后刷新页面查看结果。") {
+      return t("search.error.timeout");
+    }
+    if (raw === "客户搜索失败，请检查服务状态后重试。") {
+      return t("search.error.failed");
+    }
+    if (raw.startsWith("从历史记录恢复：")) {
+      return raw.replace("从历史记录恢复：", "Restored from history: ");
+    }
+    return raw;
+  }
+
+  function localizeLogTime(time) {
+    const raw = String(time || "--:--:--");
+    if (currentLocale() !== "en") {
+      return raw;
+    }
+    if (raw === "进行中") {
+      return t("search.log.runningTime");
+    }
+    if (raw === "失败") {
+      return t("search.log.failedTime");
+    }
+    return raw;
+  }
+
+  function localizeChannel(channel) {
+    const raw = String(channel || "").trim();
+    if (!raw) {
+      return t("search.table.officialWebsite");
+    }
+    if (currentLocale() !== "en") {
+      return raw;
+    }
+    if (raw === "官网") {
+      return t("search.table.officialWebsite");
+    }
+    if (raw === "搜索引擎 + 官网") {
+      return "Search engine + website";
+    }
+    if (raw === "公开搜索") {
+      return "Public search";
+    }
+    return raw;
+  }
+
+  function buildCompletedSummary(data = null) {
+    const count = Array.isArray(data?.customers) ? data.customers.length : searchState.customers.length;
+    return count > 0 ? t("search.summary.collected", { count }) : t("search.summary.complete");
+  }
+
+  function statusKeyForLabel(label) {
+    const map = {
+      "等待开始": "search.status.pending",
+      "搜索中...": "search.status.running",
+      "已完成": "search.status.complete",
+      "无结果": "search.status.noResults",
+      "搜索失败": "search.status.failed",
+      "已恢复": "search.status.restored",
+      Waiting: "search.status.pending",
+      "Searching...": "search.status.running",
+      Complete: "search.status.complete",
+      "No Results": "search.status.noResults",
+      "Search Failed": "search.status.failed",
+      Restored: "search.status.restored"
+    };
+    return map[label] || (String(label || "").startsWith("search.") ? label : "");
+  }
+
+  function renderSearchStatus() {
+    if (!searchStatusChip) {
+      return;
+    }
+    searchStatusChip.textContent = searchState.statusKey ? t(searchState.statusKey) : "";
+    searchStatusChip.className = `status-chip ${searchState.statusType}`;
+  }
+
+  function renderSearchTime(timestamp) {
+    if (!searchTime) {
+      return;
+    }
+    if (!timestamp) {
+      searchTime.textContent = "";
+      return;
+    }
+    const label = currentLocale() === "en" ? "Search time: " : "搜索时间：";
+    searchTime.textContent = label + formatFullTime(new Date(timestamp));
+  }
+
+  function refreshLocalizedDynamicContent() {
+    renderSearchStatus();
+
+    if (searchState.lastResponse) {
+      const data = searchState.lastResponse;
+      const summary = data.summary || buildCompletedSummary(data);
+      searchSummary.textContent = localizeSearchText(summary, data);
+      renderSearchTime(data.timestamp);
+      renderLogs(compactLogs(data.logs || [], summary));
+      renderStats(data.stats || {});
+    } else if (searchState.statusKey === "search.status.running") {
+      searchSummary.textContent = t("search.summary.running");
+      renderSearchTime(null);
+    } else if (searchSummary?.dataset.i18n) {
+      searchSummary.textContent = t(searchSummary.dataset.i18n);
+    }
+
+    renderResults(searchState.customers);
+    refreshSelectionState();
+    renderSearchHistory();
+
+    if (typeof currentModalLeadId !== "undefined" && currentModalLeadId) {
+      const lead = searchState.customers.find((customer) => customer.id === currentModalLeadId);
+      if (lead) {
+        openLeadModal(lead);
+      }
+    }
+  }
 
   init().catch((error) => {
     console.error("Customer search bootstrap failed:", error);
@@ -68,6 +222,7 @@
 
     bindHistoryPanel();
     renderSearchHistory();
+    window.addEventListener("leadflow:locale-changed", refreshLocalizedDynamicContent);
   }
 
   async function hydrateSettings() {
@@ -141,9 +296,9 @@
     const payload = buildSearchPayload();
 
     resetSearchViewForPending();
-    setSearchStatus("搜索中...", "running");
+    setSearchStatus("search.status.running", "running");
     submitButton.disabled = true;
-    submitButton.textContent = "搜索中...";
+    submitButton.textContent = t("search.status.running");
 
     // Start real timer and indeterminate progress bar
     searchState.startTime = Date.now();
@@ -152,8 +307,8 @@
     setProgressBar(null, true);
 
     renderLogs([
-      { time: "进行中", message: "正在根据左侧配置组装真实搜索请求..." },
-      { time: "进行中", message: "随后会过滤站点、提取邮箱并整理匹配客户..." }
+      { time: t("search.log.runningTime"), message: t("search.log.runningRequest") },
+      { time: t("search.log.runningTime"), message: t("search.log.runningExtract") }
     ]);
 
     try {
@@ -177,17 +332,17 @@
       applySearchResponse(data);
       cacheSearchResponse(data);
       saveSearchHistory(data, payload);
-      setSearchStatus(data.customers?.length ? "已完成" : "无结果", data.customers?.length ? "complete" : "error");
+      setSearchStatus(data.customers?.length ? "search.status.complete" : "search.status.noResults", data.customers?.length ? "complete" : "error");
     } catch (error) {
       console.error("Customer search failed:", error);
       const message = error?.name === "AbortError"
-        ? "搜索耗时较长，请稍后刷新页面查看结果。"
-        : "客户搜索失败，请检查服务状态后重试。";
+        ? t("search.error.timeout")
+        : t("search.error.failed");
       clearSearchResults();
-      renderLogs([{ time: "失败", message }]);
+      renderLogs([{ time: t("search.log.failedTime"), message }]);
       searchSummary.textContent = message;
       if (searchTime) searchTime.textContent = "";
-      setSearchStatus("搜索失败", "error");
+      setSearchStatus("search.status.failed", "error");
     } finally {
       window.clearTimeout(timeoutId);
       clearSearchTimer();
@@ -195,7 +350,7 @@
         searchState.activeController = null;
       }
       submitButton.disabled = false;
-      submitButton.textContent = "开始AI搜索";
+      submitButton.textContent = t("search.startButton");
     }
   }
 
@@ -260,7 +415,7 @@
   function hydrateSearchResult() {
     const cached = localStorage.getItem(searchStorageKey);
     if (!cached) {
-      setSearchStatus("等待开始", "pending");
+      setSearchStatus("search.status.pending", "pending");
       if (searchTime) searchTime.textContent = "";
       if (searchResultCount) {
         searchResultCount.textContent = "0";
@@ -271,11 +426,11 @@
     try {
       const data = JSON.parse(cached);
       applySearchResponse(data);
-      setSearchStatus(data.customers?.length ? "已完成" : "无结果", data.customers?.length ? "complete" : "error");
+      setSearchStatus(data.customers?.length ? "search.status.complete" : "search.status.noResults", data.customers?.length ? "complete" : "error");
     } catch (error) {
       localStorage.removeItem(searchStorageKey);
       renderLogs([]);
-      setSearchStatus("等待开始", "pending");
+      setSearchStatus("search.status.pending", "pending");
       if (searchTime) searchTime.textContent = "";
       if (searchResultCount) {
         searchResultCount.textContent = "0";
@@ -284,23 +439,17 @@
   }
 
   function applySearchResponse(data) {
+    searchState.lastResponse = data;
     searchState.customers = Array.isArray(data.customers) ? data.customers : [];
     searchState.selectedIds = new Set(searchState.customers.map((customer) => customer.id));
     syncRequestedLimit(
       resolveResponseRequestedLimit(data)
     );
 
-    searchSummary.textContent = data.summary || "已完成搜索。";
-    if (searchTime) {
-      if (data.timestamp) {
-        const locale = typeof window.leadflowLocale?.locale === "string" ? window.leadflowLocale.locale : "zh-CN";
-        const label = locale === "en" ? "Search time: " : "搜索时间：";
-        searchTime.textContent = label + formatFullTime(new Date(data.timestamp));
-      } else {
-        searchTime.textContent = "";
-      }
-    }
-    renderLogs(compactLogs(data.logs || [], data.summary || "已完成搜索。"));
+    const summary = data.summary || buildCompletedSummary(data);
+    searchSummary.textContent = localizeSearchText(summary, data);
+    renderSearchTime(data.timestamp);
+    renderLogs(compactLogs(data.logs || [], summary));
     renderStats(data.stats || {});
     renderResults(searchState.customers);
     refreshSelectionState();
@@ -310,6 +459,7 @@
   }
 
   function resetSearchViewForPending() {
+    searchState.lastResponse = null;
     searchState.customers = [];
     searchState.selectedIds = new Set();
     searchState.startTime = Date.now();
@@ -323,7 +473,7 @@
     });
     renderResults([]);
     refreshSelectionState();
-    searchSummary.textContent = "正在抓取客户线索，请稍候...";
+    searchSummary.textContent = t("search.summary.running");
     if (searchTime) searchTime.textContent = "";
     if (searchResultCount) {
       searchResultCount.textContent = "0";
@@ -331,6 +481,7 @@
   }
 
   function clearSearchResults() {
+    searchState.lastResponse = null;
     searchState.customers = [];
     searchState.selectedIds = new Set();
     localStorage.removeItem(searchStorageKey);
@@ -355,7 +506,7 @@
       searchLogs.innerHTML = `
         <li class="log-item">
           <span class="log-time">--:--:--</span>
-          <span class="log-text">当前没有新的运行日志。</span>
+          <span class="log-text">${escapeHtml(t("search.log.noNew"))}</span>
         </li>
       `;
       return;
@@ -365,8 +516,8 @@
       .map(
         (log) => `
           <li class="log-item">
-            <span class="log-time">${escapeHtml(log.time || "--:--:--")}</span>
-            <span class="log-text">${escapeHtml(log.message || "")}</span>
+            <span class="log-time">${escapeHtml(localizeLogTime(log.time || "--:--:--"))}</span>
+            <span class="log-text">${escapeHtml(localizeSearchText(log.message || ""))}</span>
           </li>
         `
       )
@@ -427,8 +578,8 @@
                   <path d="m20 20-4.2-4.2"></path>
                 </svg>
               </span>
-              <h2>开始搜索客户</h2>
-              <p class="empty-copy">在左侧配置搜索条件，点击“开始AI搜索”按钮后，客户结果会在下方表格中出现。</p>
+              <h2>${escapeHtml(t("search.emptyTitle"))}</h2>
+              <p class="empty-copy">${escapeHtml(t("search.emptyCopy"))}</p>
             </div>
           </td>
         </tr>
@@ -452,14 +603,14 @@
             <td>
               ${customer.email
                 ? `<span class="table-email">${escapeHtml(customer.email)}</span>`
-                : `<span class="table-note">未找到公开邮箱</span>`}
+                : `<span class="table-note">${escapeHtml(t("search.table.noEmail"))}</span>`}
             </td>
-            <td>${escapeHtml(customer.channel || "官网")}</td>
+            <td>${escapeHtml(localizeChannel(customer.channel))}</td>
             <td>${renderFitBadge(customer)}</td>
             <td>
               <div class="ops-cell">
-                <button type="button" class="btn-view" data-lead-id="${escapeHtml(customer.id)}">查看</button>
-                <button type="button" class="btn-outreach-single" data-lead-id="${escapeHtml(customer.id)}">生成开发信</button>
+                <button type="button" class="btn-view" data-lead-id="${escapeHtml(customer.id)}">${escapeHtml(t("search.table.view"))}</button>
+                <button type="button" class="btn-outreach-single" data-lead-id="${escapeHtml(customer.id)}">${escapeHtml(t("search.table.createOutreach"))}</button>
               </div>
             </td>
           </tr>
@@ -484,12 +635,18 @@
       return;
     }
 
-    const lines = [["公司名称", "联系方式", "社交媒体", "匹配度", "官网"].join(",")];
+    const lines = [[
+      t("search.csv.company"),
+      t("search.csv.contact"),
+      t("search.csv.channel"),
+      t("search.csv.fit"),
+      t("search.csv.website")
+    ].join(",")];
     selectedCustomers.forEach((customer) => {
       lines.push([
         csvEscape(customer.companyName),
-        csvEscape(`${displayValue(customer.contactName, "Business Contact")} / ${displayValue(customer.email, "未找到公开邮箱")}`),
-        csvEscape(customer.channel || "官网"),
+        csvEscape(`${displayValue(customer.contactName, "Business Contact")} / ${displayValue(customer.email, t("search.table.noEmail"))}`),
+        csvEscape(localizeChannel(customer.channel)),
         csvEscape(customer.fitNote || "candidate website"),
         csvEscape(customer.website)
       ].join(","));
@@ -540,11 +697,9 @@
   }
 
   function setSearchStatus(label, type) {
-    if (!searchStatusChip) {
-      return;
-    }
-    searchStatusChip.textContent = label;
-    searchStatusChip.className = `status-chip ${type}`;
+    searchState.statusKey = statusKeyForLabel(label) || label;
+    searchState.statusType = type;
+    renderSearchStatus();
   }
 
   function csvEscape(value) {
@@ -556,9 +711,9 @@
     const hasContact = !!(customer.contactName && customer.contactName.trim());
     const hasEmail = !!(customer.email && customer.email.trim());
     const count = (hasContact ? 1 : 0) + (hasEmail ? 1 : 0);
-    if (count === 2) return '<span class="fit-badge fit-high">高</span>';
-    if (count === 1) return '<span class="fit-badge fit-mid">较高</span>';
-    return '<span class="fit-badge fit-low">低</span>';
+    if (count === 2) return `<span class="fit-badge fit-high">${escapeHtml(t("search.table.fitHigh"))}</span>`;
+    if (count === 1) return `<span class="fit-badge fit-mid">${escapeHtml(t("search.table.fitMedium"))}</span>`;
+    return `<span class="fit-badge fit-low">${escapeHtml(t("search.table.fitLow"))}</span>`;
   }
 
   function displayValue(value, fallbackText) {
@@ -866,12 +1021,10 @@
 
     localStorage.setItem(searchStorageKey, JSON.stringify(data));
     applySearchResponse(data);
-    const locale = typeof window.leadflowLocale?.locale === "string" ? window.leadflowLocale.locale : "zh-CN";
-    const restoredLabel = locale === "en" ? "Restored" : "已恢复";
-    const restoredSummary = locale === "en"
+    const restoredSummary = currentLocale() === "en"
       ? `Restored from history: ${item.summary} (${item.resultCount} leads)`
       : `从历史记录恢复：${item.summary}（${item.resultCount} 位客户）`;
-    setSearchStatus(restoredLabel, "complete");
+    setSearchStatus("search.status.restored", "complete");
     searchSummary.textContent = restoredSummary;
 
     if (historyPanel && !historyPanel.classList.contains("is-hidden")) {
@@ -933,7 +1086,7 @@
 
   function openLeadModal(lead) {
     currentModalLeadId = lead.id;
-    const name = lead.companyName || "未知公司";
+    const name = lead.companyName || t("search.modal.unknownCompany");
     modalTitle.textContent = name;
     modalAvatar.textContent = name.charAt(0).toUpperCase();
 
@@ -954,7 +1107,7 @@
       modalRowEmail.style.display = "none";
     }
 
-    setModalRow(modalRowChannel, modalChannel, lead.channel);
+    setModalRow(modalRowChannel, modalChannel, localizeChannel(lead.channel));
     setModalRow(modalRowFit, modalFit, lead.fitNote);
 
     leadModal.classList.remove("is-hidden");
