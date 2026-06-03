@@ -65,6 +65,10 @@ public class WorkflowService {
         return settingsService.saveSearchSettings(request);
     }
 
+    public SettingsModels.SearchConnectionTestResult testSearchSettings(SettingsModels.SearchSettings request) {
+        return workflowSearchService.testSerpApiConnection(request);
+    }
+
     public SettingsModels.CrawlerSettings saveCrawlerSettings(SettingsModels.CrawlerSettings request) {
         return settingsService.saveCrawlerSettings(request);
     }

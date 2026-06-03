@@ -98,7 +98,10 @@
                     <h2 class="settings-section-title" data-i18n="search.section.serp.title">SerpAPI （Google搜索）</h2>
                   </div>
                 </div>
-                <span class="section-status gray" data-i18n="search.section.serp.status">未配置</span>
+                <div class="section-control-group">
+                  <span id="search-serp-status" class="section-status gray" data-i18n="search.section.serp.status">未配置</span>
+                  <button id="test-serp-api-key" class="action-button ghost ref-inline-button section-action-button" type="button" data-i18n="search.btn.testSerpKey">检测 Key</button>
+                </div>
               </div>
 
               <div class="setting-body">
@@ -118,7 +121,7 @@
                   </label>
 
                   <label class="input-group setting-field full">
-                    <span data-i18n="search.field.resultsPerPage">每页结果数</span>
+                    <span data-i18n="search.field.resultsPerPage">默认目标线索数</span>
                     <input class="text-input" id="search-results-per-page" type="number" min="1" max="50" placeholder="20" />
                   </label>
                 </div>
@@ -180,10 +183,15 @@
           "search.hero.copy": "配置搜索 API，获取真实客户搜索数据。",
           "search.section.serp.title": "SerpAPI （Google搜索）",
           "search.section.serp.status": "未配置",
+          "search.section.serp.statusConfigured": "已配置",
+          "search.section.serp.statusPending": "待检测",
+          "search.section.serp.statusChecking": "检测中",
+          "search.section.serp.statusInvalid": "Key 无效",
           "search.field.serpKey.placeholder": "输入 SerpAPI Key",
           "search.field.serpKey.helper": "从 serpapi.com 获取 API Key，支持 Google/Baidu 搜索。",
+          "search.btn.testSerpKey": "检测 Key",
           "search.field.engine": "默认搜索引擎",
-          "search.field.resultsPerPage": "每页结果数",
+          "search.field.resultsPerPage": "默认目标线索数",
           "search.section.linkedin.title": "LinkedIn 数据",
           "search.field.linkedinKey": "LINKEDIN API KEY（可选）",
           "search.field.linkedinKey.placeholder": "LinkedIn API Key（可选）",
@@ -207,10 +215,15 @@
           "search.hero.copy": "Configure the Search API to retrieve real customer data.",
           "search.section.serp.title": "SerpAPI (Google Search)",
           "search.section.serp.status": "Not Configured",
+          "search.section.serp.statusConfigured": "Configured",
+          "search.section.serp.statusPending": "Needs Test",
+          "search.section.serp.statusChecking": "Checking",
+          "search.section.serp.statusInvalid": "Invalid Key",
           "search.field.serpKey.placeholder": "Enter SerpAPI Key",
           "search.field.serpKey.helper": "Get an API Key from serpapi.com to enable Google/Baidu search.",
+          "search.btn.testSerpKey": "Test Key",
           "search.field.engine": "Default Search Engine",
-          "search.field.resultsPerPage": "Results Per Page",
+          "search.field.resultsPerPage": "Default Target Leads",
           "search.section.linkedin.title": "LinkedIn Data",
           "search.field.linkedinKey": "LINKEDIN API KEY (Optional)",
           "search.field.linkedinKey.placeholder": "LinkedIn API Key (optional)",
@@ -219,6 +232,6 @@
       };
     </script>
     <script src="/main.js?v=5"></script>
-    <script src="/settings.js?v=6"></script>
+    <script src="/settings.js?v=7"></script>
   </body>
 </html>

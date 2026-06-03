@@ -2189,6 +2189,21 @@ svg {
   font-weight: 800;
 }
 
+.section-control-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.section-action-button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .section-status.green {
   background: var(--green-soft);
   color: var(--green);
@@ -2197,6 +2212,16 @@ svg {
 .section-status.gray {
   background: #f3f0ec;
   color: #9c9287;
+}
+
+.section-status.yellow {
+  background: #fff4d8;
+  color: #b56a00;
+}
+
+.section-status.red {
+  background: #fff0eb;
+  color: #c95a2e;
 }
 
 .setting-body {

@@ -82,6 +82,11 @@ public class WorkflowApiController {
         return workflowService.saveSearchSettings(request);
     }
 
+    @PostMapping("/settings/search/test")
+    public SettingsModels.SearchConnectionTestResult testSearchSettings(@RequestBody SettingsModels.SearchSettings request) {
+        return workflowService.testSearchSettings(request);
+    }
+
     @PostMapping("/settings/crawler")
     public SettingsModels.CrawlerSettings saveCrawlerSettings(@RequestBody SettingsModels.CrawlerSettings request) {
         return workflowService.saveCrawlerSettings(request);

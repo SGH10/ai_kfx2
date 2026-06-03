@@ -122,20 +122,132 @@
     setValue("#search-results-per-page", settings.search.resultsPerPage);
     setValue("#search-linkedin-api-key", settings.search.linkedinApiKey);
 
+    const serpApiKeyInput = document.querySelector("#search-serp-api-key");
+    const testSerpApiKeyButton = document.querySelector("#test-serp-api-key");
+    let serpApiStatusState = valueOf("#search-serp-api-key") ? "pending" : "empty";
+    let isTestingSerpApiKey = false;
+    const syncSerpApiStatus = () => {
+      updateSerpApiStatus(isTestingSerpApiKey ? "checking" : serpApiStatusState);
+    };
+
+    syncSerpApiStatus();
+    serpApiKeyInput?.addEventListener("input", () => {
+      serpApiStatusState = valueOf("#search-serp-api-key") ? "pending" : "empty";
+      syncSerpApiStatus();
+    });
+    window.addEventListener("leadflow:locale-changed", syncSerpApiStatus);
+
+    testSerpApiKeyButton?.addEventListener("click", async () => {
+      if (isTestingSerpApiKey) {
+        return;
+      }
+
+      const testedApiKey = valueOf("#search-serp-api-key");
+      if (!testedApiKey) {
+        serpApiStatusState = "empty";
+        syncSerpApiStatus();
+        setResult("#search-settings-result", t("请先输入 SerpAPI Key。", "Enter a SerpAPI Key first."), false);
+        return;
+      }
+
+      serpApiStatusState = "checking";
+      isTestingSerpApiKey = true;
+      syncSerpApiStatus();
+      setResult("#search-settings-result", t("正在检测 SerpAPI Key...", "Checking SerpAPI Key..."), true);
+
+      try {
+        const response = await fetch("/api/settings/search/test", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(buildSearchPayload())
+        });
+        const result = response.ok ? await response.json() : null;
+        const currentApiKey = valueOf("#search-serp-api-key");
+        if (currentApiKey !== testedApiKey) {
+          serpApiStatusState = currentApiKey ? "pending" : "empty";
+        } else {
+          serpApiStatusState = result?.success ? "valid" : "invalid";
+        }
+        syncSerpApiStatus();
+        setResult(
+          "#search-settings-result",
+          result?.success
+            ? t("SerpAPI Key 检测通过。", "SerpAPI Key is valid.")
+            : t("SerpAPI Key 无效，请检查后重试。", "SerpAPI Key is invalid. Check it and try again."),
+          Boolean(result?.success)
+        );
+      } catch (error) {
+        console.error("SerpAPI key test failed:", error);
+        const currentApiKey = valueOf("#search-serp-api-key");
+        serpApiStatusState = currentApiKey === testedApiKey
+          ? "invalid"
+          : currentApiKey ? "pending" : "empty";
+        syncSerpApiStatus();
+        setResult("#search-settings-result", t("检测失败，请检查网络或稍后重试。", "Test failed. Check the network or try again later."), false);
+      } finally {
+        isTestingSerpApiKey = false;
+        syncSerpApiStatus();
+      }
+    });
+
     document.querySelector("#search-settings-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      await saveSettings(
+      const saved = await saveSettings(
         "/api/settings/search",
-        {
-          serpApiKey: valueOf("#search-serp-api-key"),
-          defaultEngine: valueOf("#search-default-engine"),
-          resultsPerPage: numberOf("#search-results-per-page", 12),
-          linkedinApiKey: valueOf("#search-linkedin-api-key")
-        },
+        buildSearchPayload(),
         "#search-settings-result",
         t("搜索配置已保存，客户搜索页会使用新的默认搜索参数。", "Search settings saved. Customer search page will use the new parameters.")
       );
+      if (saved) {
+        syncSerpApiStatus();
+      }
     });
+  }
+
+  function buildSearchPayload() {
+    return {
+      serpApiKey: valueOf("#search-serp-api-key"),
+      defaultEngine: valueOf("#search-default-engine"),
+      resultsPerPage: numberOf("#search-results-per-page", 12),
+      linkedinApiKey: valueOf("#search-linkedin-api-key")
+    };
+  }
+
+  function updateSerpApiStatus(state) {
+    const status = document.querySelector("#search-serp-status");
+    const button = document.querySelector("#test-serp-api-key");
+    if (!status) {
+      return;
+    }
+
+    const labels = {
+      empty: t("未配置", "Not Configured"),
+      pending: t("待检测", "Needs Test"),
+      checking: t("检测中", "Checking"),
+      invalid: t("Key 无效", "Invalid Key"),
+      valid: t("已配置", "Configured")
+    };
+    const buttonLabels = {
+      empty: t("检测 Key", "Test Key"),
+      pending: t("检测 Key", "Test Key"),
+      checking: t("检测中", "Checking"),
+      invalid: t("重新检测", "Retest"),
+      valid: t("重新检测", "Retest")
+    };
+    const normalizedState = valueOf("#search-serp-api-key") ? state : "empty";
+    status.textContent = labels[normalizedState] || labels.empty;
+    status.classList.toggle("green", normalizedState === "valid");
+    status.classList.toggle("yellow", normalizedState === "checking" || normalizedState === "pending");
+    status.classList.toggle("red", normalizedState === "invalid");
+    status.classList.toggle("gray", normalizedState === "empty");
+
+    if (button) {
+      button.textContent = buttonLabels[normalizedState] || buttonLabels.empty;
+      button.disabled = normalizedState === "empty" || normalizedState === "checking";
+      button.classList.toggle("is-checking", normalizedState === "checking");
+    }
   }
 
   function bindCrawlerSettings(settings) {
@@ -269,10 +381,11 @@
 
     if (!response.ok) {
       setResult(resultSelector, t("保存失败，请稍后重试。", "Save failed. Please try again."), false);
-      return;
+      return false;
     }
 
     setResult(resultSelector, successText, true);
+    return true;
   }
 
   function setResult(selector, message, success) {

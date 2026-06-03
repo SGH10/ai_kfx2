@@ -102,6 +102,13 @@ public final class SettingsModels {
     ) {
     }
 
+    public record SearchConnectionTestResult(
+            boolean success,
+            String requestUrl,
+            String responsePreview
+    ) {
+    }
+
     public record SearchSettings(
             String serpApiKey,
             String defaultEngine,

@@ -173,6 +173,50 @@ public class WorkflowSearchService {
         return lastSearchResponse;
     }
 
+    public SettingsModels.SearchConnectionTestResult testSerpApiConnection(SettingsModels.SearchSettings request) {
+        SettingsModels.SearchSettings settings = request == null ? SettingsModels.SearchSettings.defaults() : request;
+        String serpApiKey = settings.serpApiKey();
+        String serpEngine = mapEngineName(settings.defaultEngine());
+        String apiUrl = SERPAPI_BASE_URL
+                + "?q=" + URLEncoder.encode("test", StandardCharsets.UTF_8)
+                + "&api_key=" + URLEncoder.encode(serpApiKey == null ? "" : serpApiKey.trim(), StandardCharsets.UTF_8)
+                + "&engine=" + serpEngine
+                + "&num=1";
+        String displayUrl = apiUrl.replaceFirst("api_key=[^&]*", "api_key=***");
+
+        if (serpApiKey == null || serpApiKey.isBlank()) {
+            return new SettingsModels.SearchConnectionTestResult(false, displayUrl, "SerpAPI key is empty.");
+        }
+
+        try {
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl))
+                    .header("Accept", "application/json")
+                    .timeout(java.time.Duration.ofSeconds(20))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            String body = response.body() == null ? "" : response.body();
+            String preview = body.length() > 400 ? body.substring(0, 400) : body;
+            if (response.statusCode() != 200) {
+                return new SettingsModels.SearchConnectionTestResult(false, displayUrl, "HTTP " + response.statusCode() + ": " + preview);
+            }
+
+            JsonNode root = objectMapper.readTree(body);
+            JsonNode error = root.get("error");
+            if (error != null && !error.isNull() && !error.asText("").isBlank()) {
+                return new SettingsModels.SearchConnectionTestResult(false, displayUrl, error.asText());
+            }
+
+            JsonNode organicResults = root.get("organic_results");
+            boolean valid = organicResults != null && organicResults.isArray();
+            return new SettingsModels.SearchConnectionTestResult(valid, displayUrl, preview);
+        } catch (Exception e) {
+            return new SettingsModels.SearchConnectionTestResult(false, displayUrl, e.getMessage());
+        }
+    }
+
     public WorkflowModels.CustomerSearchResponse searchCustomers(WorkflowModels.CustomerSearchRequest request) {
         SearchSession session = new SearchSession();
         SettingsModels.AppSettings settings = settingsService.getSettings();
