@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>搜索配置 | 一分钟科技</title>
     <meta name="description" content="搜索 API、SerpAPI 与 LinkedIn 数据配置。" />
-    <link rel="stylesheet" href="/styles.css?v=7" />
+    <link rel="stylesheet" href="/styles.css?v=8" />
   </head>
   <body class="site-body">
     <header class="system-header ref-settings-header">
@@ -37,6 +37,12 @@
                 <path d="M12 2 4 6v12l8 4 8-4V6l-8-4Zm0 2.2 5.8 2.9L12 10 6.2 7.1 12 4.2Zm-6 4.7 5 2.5v6.4l-5-2.5V8.9Zm7 8.9v-6.4l5-2.5v6.4l-5 2.5Z" />
               </svg>
               <span data-i18n="settings.nav.modelConfig">模型配置</span>
+            </a>
+            <a class="settings-link" data-settings-path="/business-profile" href="/business-profile">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4 5.75A2.75 2.75 0 0 1 6.75 3h10.5A2.75 2.75 0 0 1 20 5.75v12.5A2.75 2.75 0 0 1 17.25 21H6.75A2.75 2.75 0 0 1 4 18.25V5.75ZM6.75 5A.75.75 0 0 0 6 5.75v12.5c0 .41.34.75.75.75h10.5c.41 0 .75-.34.75-.75V5.75a.75.75 0 0 0-.75-.75H6.75ZM8 8h8v2H8V8Zm0 4h8v2H8v-2Zm0 4h5v2H8v-2Z" />
+              </svg>
+              <span data-i18n="settings.nav.businessProfile">业务资料</span>
             </a>
           </div>
 
@@ -113,11 +119,15 @@
                   </label>
 
                   <label class="input-group setting-field full">
-                    <span data-i18n="search.field.engine">默认搜索引擎</span>
+                    <span data-i18n="search.field.engine">搜索源优先级</span>
                     <select class="select-input" id="search-default-engine">
-                      <option value="Google">Google（需要系统代理）</option>
-                      <option value="Baidu">百度</option>
+                      <option value="Auto" data-i18n="search.engine.auto">自动（推荐）</option>
+                      <option value="Google" data-i18n="search.engine.google">Google 优先（需要系统代理）</option>
+                      <option value="Baidu" data-i18n="search.engine.baidu">百度 优先</option>
+                      <option value="Bing" data-i18n="search.engine.bing">Bing 优先</option>
+                      <option value="DuckDuckGo" data-i18n="search.engine.duckduckgo">DuckDuckGo 优先</option>
                     </select>
+                    <span class="helper-text" data-i18n="search.field.engine.helper">无 Key 时会先走所选搜索源，再用自动链路补足候选，避免结果数量明显下降。</span>
                   </label>
 
                   <label class="input-group setting-field full">
@@ -155,7 +165,7 @@
 
             <div class="footer-actions right ref-settings-footer">
               <div id="search-settings-result" class="helper-note"></div>
-              <button class="action-button ghost" type="button" data-i18n="settings.btn.reset">恢复默认</button>
+              <button id="search-settings-reset" class="action-button ghost" type="button" data-i18n="settings.btn.reset">恢复默认</button>
               <button class="action-button orange" type="submit" data-i18n="settings.btn.save">保存配置</button>
             </div>
           </form>
@@ -169,6 +179,7 @@
           "__title": "搜索配置 | 一分钟科技",
           "settings.nav.group.ai": "AI 模型",
           "settings.nav.modelConfig": "模型配置",
+          "settings.nav.businessProfile": "业务资料",
           "settings.nav.group.search": "搜索引擎",
           "settings.nav.searchApi": "搜索 API",
           "settings.nav.crawlerConfig": "爬虫配置",
@@ -190,7 +201,13 @@
           "search.field.serpKey.placeholder": "输入 SerpAPI Key",
           "search.field.serpKey.helper": "从 serpapi.com 获取 API Key，支持 Google/Baidu 搜索。",
           "search.btn.testSerpKey": "检测 Key",
-          "search.field.engine": "默认搜索引擎",
+          "search.field.engine": "搜索源优先级",
+          "search.field.engine.helper": "无 Key 时会先走所选搜索源，再用自动链路补足候选，避免结果数量明显下降。",
+          "search.engine.auto": "自动（推荐）",
+          "search.engine.google": "Google 优先（需要系统代理）",
+          "search.engine.baidu": "百度 优先",
+          "search.engine.bing": "Bing 优先",
+          "search.engine.duckduckgo": "DuckDuckGo 优先",
           "search.field.resultsPerPage": "默认目标线索数",
           "search.section.linkedin.title": "LinkedIn 数据",
           "search.field.linkedinKey": "LINKEDIN API KEY（可选）",
@@ -201,6 +218,7 @@
           "__title": "Search Settings | One Minute Tech",
           "settings.nav.group.ai": "AI Model",
           "settings.nav.modelConfig": "Model Config",
+          "settings.nav.businessProfile": "Business Profile",
           "settings.nav.group.search": "Search Engine",
           "settings.nav.searchApi": "Search API",
           "settings.nav.crawlerConfig": "Crawler Config",
@@ -222,7 +240,13 @@
           "search.field.serpKey.placeholder": "Enter SerpAPI Key",
           "search.field.serpKey.helper": "Get an API Key from serpapi.com to enable Google/Baidu search.",
           "search.btn.testSerpKey": "Test Key",
-          "search.field.engine": "Default Search Engine",
+          "search.field.engine": "Search Source Priority",
+          "search.field.engine.helper": "Without a key, the selected source runs first, then the automatic fallback chain fills candidates so result volume does not drop sharply.",
+          "search.engine.auto": "Auto (recommended)",
+          "search.engine.google": "Google first (system proxy required)",
+          "search.engine.baidu": "Baidu first",
+          "search.engine.bing": "Bing first",
+          "search.engine.duckduckgo": "DuckDuckGo first",
           "search.field.resultsPerPage": "Default Target Leads",
           "search.section.linkedin.title": "LinkedIn Data",
           "search.field.linkedinKey": "LINKEDIN API KEY (Optional)",
@@ -232,6 +256,6 @@
       };
     </script>
     <script src="/main.js?v=5"></script>
-    <script src="/settings.js?v=7"></script>
+    <script src="/settings.js?v=8"></script>
   </body>
 </html>

@@ -305,6 +305,16 @@ public class WorkflowSearchService {
                 || normalizedIndustry.contains("通用机械设备")
                 || normalizedIndustry.contains("通用机械")
                 || normalizedIndustry.contains("机械设备");
+        boolean packagingMachineryIndustry = normalizedIndustry.contains("packaging machinery")
+                || normalizedIndustry.contains("packaging equipment")
+                || normalizedIndustry.contains("packing machine")
+                || normalizedIndustry.contains("包装机械设备")
+                || normalizedIndustry.contains("包装机械")
+                || normalizedIndustry.contains("包装设备")
+                || normalizedIndustry.contains("包装机");
+        if (packagingMachineryIndustry) {
+            machineryIndustry = false;
+        }
         boolean automationIndustry = normalizedIndustry.contains("industrial automation")
                 || normalizedIndustry.contains("工业自动化")
                 || normalizedIndustry.contains("自动化设备")
@@ -314,6 +324,13 @@ public class WorkflowSearchService {
                 || normalizedIndustry.contains("金属加工")
                 || normalizedIndustry.contains("数控")
                 || normalizedIndustry.contains("机床");
+        boolean medicalIndustry = normalizedIndustry.contains("medical equipment")
+                || normalizedIndustry.contains("medical device")
+                || normalizedIndustry.contains("medtech")
+                || normalizedIndustry.contains("医疗器械")
+                || normalizedIndustry.contains("医疗设备")
+                || normalizedIndustry.contains("医用设备")
+                || normalizedIndustry.contains("器械");
         String primaryIndustryHint = firstQueryHint(industryHints, toEnglishHint(industry));
         String secondaryIndustryHint = nextDistinctQueryHint(industryHints, primaryIndustryHint);
         String primaryKeywordHint = hasKeywordHints
@@ -374,6 +391,19 @@ public class WorkflowSearchService {
                 queries.add(joinQuery("site:.cn", "机械设备", "有限公司"));
                 queries.add(joinQuery("site:.cn", "机械设备", "厂家"));
             }
+            if (packagingMachineryIndustry) {
+                queries.add(joinQuery("site:.cn", "packaging machinery", "manufacturer"));
+                queries.add(joinQuery("site:.cn", "packaging equipment", "manufacturer"));
+                queries.add(joinQuery("packaging machinery", "supplier", "contact"));
+                queries.add(joinQuery("包装机械", "有限公司"));
+                queries.add(joinQuery("包装设备", "厂家"));
+                queries.add(joinQuery("包装机", "厂家", "联系方式"));
+                queries.add(joinQuery("site:.cn", "包装机械", "有限公司"));
+                queries.add(joinQuery("site:.cn", "包装设备", "有限公司"));
+                queries.add(joinQuery("site:.cn", "包装机", "厂家"));
+                queries.add(joinQuery("灌装机", "厂家"));
+                queries.add(joinQuery("封口机", "厂家"));
+            }
             if (automationIndustry) {
                 queries.add(joinQuery("site:.cn", "工业自动化", "有限公司"));
                 queries.add(joinQuery("site:.cn", "自动化设备", "有限公司"));
@@ -389,6 +419,16 @@ public class WorkflowSearchService {
                 queries.add(joinQuery("site:.cn", "CNC", "机床"));
                 queries.add(joinQuery("数控", "机床", "厂家"));
                 queries.add(joinQuery("加工中心", "厂家"));
+            }
+            if (medicalIndustry) {
+                queries.add(joinQuery("site:.cn", "medical device", "manufacturer", "official website"));
+                queries.add(joinQuery("site:.cn", "medical equipment", "manufacturer"));
+                queries.add(joinQuery("medical device", "supplier", "contact"));
+                queries.add(joinQuery("site:.cn", "医疗器械", "有限公司"));
+                queries.add(joinQuery("site:.cn", "医疗设备", "有限公司"));
+                queries.add(joinQuery("医疗器械", "厂家", "联系方式"));
+                queries.add(joinQuery("医疗设备", "厂家", "联系方式"));
+                queries.add(joinQuery("医用设备", "厂家"));
             }
             } // end else (specific industry)
             if (!"ALL".equalsIgnoreCase(companySize)) {
@@ -436,36 +476,234 @@ public class WorkflowSearchService {
     ) {
         String serpApiKey = searchSettings.serpApiKey();
         if (serpApiKey != null && !serpApiKey.isBlank()) {
-            session.log("Mode: SerpAPI (engine=" + searchSettings.defaultEngine() + ")");
+            session.log("Mode: SerpAPI (engine=" + mapEngineName(searchSettings.defaultEngine()) + ")");
             return fetchCandidatesFromSerpApi(queries, session, candidatePoolLimit, serpApiKey, searchSettings.defaultEngine());
         }
 
-        session.log("Mode: Direct web scraping (Bing / DuckDuckGo / Baidu)");
+        DirectSearchEngine directEngine = directSearchEngine(searchSettings.defaultEngine());
+        SearchSourceMix sourceMix = planDirectSearchSourceMix(directEngine, market, queries.size(), crawlerSettings);
+        int collectionLimit = directSearchCollectionLimit(directEngine, candidatePoolLimit, leadLimit);
+        session.log("Mode: Direct web scraping (" + directSearchModeLabel(directEngine, market) + ")");
+        if (directEngine != DirectSearchEngine.AUTO) {
+            session.log("Source mix: " + sourceMix.engine() + " primary fetches=" + sourceMix.primaryFetches()
+                    + ", auto fallback fetches=" + sourceMix.autoFallbackFetches()
+                    + ", fallback queries=" + sourceMix.autoFallbackQueryLimit() + "/" + sourceMix.queryCount());
+        }
         List<SearchCandidate> candidates = new ArrayList<>();
         Set<String> seenHosts = new LinkedHashSet<>();
+        int primaryQueryLimit = primaryDirectQueryLimit(directEngine, queries.size(), crawlerSettings);
+        int fallbackExpansionCandidateThreshold = fallbackExpansionCandidateThreshold(directEngine, leadLimit, candidatePoolLimit);
+        if (directEngine == DirectSearchEngine.GOOGLE && primaryQueryLimit < queries.size()) {
+            session.log("Google direct scraping is limited to " + primaryQueryLimit + " quick probe queries; automatic sources will fill the rest.");
+        }
 
-        for (String query : queries) {
-            if (candidates.size() >= candidatePoolLimit) {
+        for (int queryIndex = 0; queryIndex < queries.size(); queryIndex++) {
+            if (candidates.size() >= collectionLimit) {
                 break;
             }
+            String query = queries.get(queryIndex);
             session.log("Trying query: " + query);
-            collectFromBingRss(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
-            collectFromBingHtml(query, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
-            if (!"China".equalsIgnoreCase(market)) {
-                collectFromDuckDuckGo(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+            if (directEngine != DirectSearchEngine.AUTO && queryIndex < primaryQueryLimit) {
+                collectFromDirectEngine(directEngine, query, candidates, seenHosts, collectionLimit, timeoutMs, crawlerSettings);
             }
-            if ("China".equalsIgnoreCase(market)) {
-                collectFromBaidu(query, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
+            if (directEngine == DirectSearchEngine.AUTO || queryIndex < sourceMix.autoFallbackQueryLimit()) {
+                collectFromAutoDirectSources(query, market, directEngine, candidates, seenHosts, collectionLimit, timeoutMs, crawlerSettings);
             }
         }
 
-        if (crawlerSettings.googleFallbackEnabled() && !"China".equalsIgnoreCase(market) && candidates.size() < leadLimit) {
+        if (
+                directEngine != DirectSearchEngine.AUTO
+                        && candidates.size() < fallbackExpansionCandidateThreshold
+                        && sourceMix.autoFallbackQueryLimit() < queries.size()
+        ) {
+            session.log("Auto fallback expanded because primary priority sources returned only " + candidates.size() + " candidates.");
+            for (int queryIndex = sourceMix.autoFallbackQueryLimit(); queryIndex < queries.size(); queryIndex++) {
+                if (
+                        candidates.size() >= collectionLimit
+                                || (directEngine == DirectSearchEngine.GOOGLE && candidates.size() >= fallbackExpansionCandidateThreshold)
+                ) {
+                    break;
+                }
+                collectFromAutoDirectSources(queries.get(queryIndex), market, directEngine, candidates, seenHosts, collectionLimit, timeoutMs, crawlerSettings);
+            }
+        }
+
+        if (
+                directEngine != DirectSearchEngine.GOOGLE
+                        && crawlerSettings.googleFallbackEnabled()
+                        && !"China".equalsIgnoreCase(market)
+                        && candidates.size() < leadLimit
+        ) {
             session.log("Google fallback enabled because primary sources returned only " + candidates.size() + " candidates.");
-            collectGoogleFallback(queries, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings);
+            collectGoogleFallback(queries, candidates, seenHosts, collectionLimit, timeoutMs, crawlerSettings);
         }
 
         session.log("Collected " + candidates.size() + " candidate websites.");
         return candidates;
+    }
+
+    private void collectFromDirectEngine(
+            DirectSearchEngine engine,
+            String query,
+            List<SearchCandidate> candidates,
+            Set<String> seenHosts,
+            int candidatePoolLimit,
+            int timeoutMs,
+            SettingsModels.CrawlerSettings crawlerSettings
+    ) {
+        switch (engine) {
+            case GOOGLE -> collectFromGoogle(
+                    query,
+                    candidates,
+                    seenHosts,
+                    candidatePoolLimit,
+                    Math.min(timeoutMs, normalizePositive(crawlerSettings.googleFallbackTimeoutMs(), 5000, 1000)),
+                    normalizePositive(crawlerSettings.googleFallbackPageLimit(), 1, 1)
+            );
+            case BAIDU -> collectFromBaidu(query, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
+            case BING -> {
+                collectFromBingRss(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+                collectFromBingHtml(query, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
+            }
+            case DUCKDUCKGO -> collectFromDuckDuckGo(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+            case AUTO -> {
+                // AUTO is handled by collectFromAutoDirectSources.
+            }
+        }
+    }
+
+    private int primaryDirectQueryLimit(
+            DirectSearchEngine engine,
+            int queryCount,
+            SettingsModels.CrawlerSettings crawlerSettings
+    ) {
+        if (engine == DirectSearchEngine.GOOGLE) {
+            return Math.min(queryCount, normalizePositive(crawlerSettings.googleFallbackQueryLimit(), 2, 1));
+        }
+        return queryCount;
+    }
+
+    private int fallbackExpansionCandidateThreshold(DirectSearchEngine engine, int leadLimit, int candidatePoolLimit) {
+        if (engine == DirectSearchEngine.GOOGLE) {
+            return Math.min(candidatePoolLimit, Math.max(leadLimit * 4, 50));
+        }
+        return leadLimit;
+    }
+
+    private void collectFromAutoDirectSources(
+            String query,
+            String market,
+            DirectSearchEngine primaryEngine,
+            List<SearchCandidate> candidates,
+            Set<String> seenHosts,
+            int candidatePoolLimit,
+            int timeoutMs,
+            SettingsModels.CrawlerSettings crawlerSettings
+    ) {
+        if (primaryEngine != DirectSearchEngine.BING) {
+            collectFromBingRss(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+            collectFromBingHtml(query, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
+        }
+        if (!"China".equalsIgnoreCase(market) && primaryEngine != DirectSearchEngine.DUCKDUCKGO) {
+            collectFromDuckDuckGo(query, candidates, seenHosts, candidatePoolLimit, timeoutMs);
+        }
+        if ("China".equalsIgnoreCase(market) && primaryEngine != DirectSearchEngine.BAIDU) {
+            collectFromBaidu(query, candidates, seenHosts, candidatePoolLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
+        }
+    }
+
+    private int directSearchCollectionLimit(DirectSearchEngine engine, int candidatePoolLimit, int leadLimit) {
+        if (engine == DirectSearchEngine.AUTO) {
+            return candidatePoolLimit;
+        }
+        return candidatePoolLimit + Math.max(leadLimit * 4, 40);
+    }
+
+    private String directSearchModeLabel(DirectSearchEngine engine, String market) {
+        String fallbackSources = "China".equalsIgnoreCase(market)
+                ? "Auto fallback: Bing RSS / Bing HTML / Baidu"
+                : "Auto fallback: Bing RSS / Bing HTML / DuckDuckGo";
+        return switch (engine) {
+            case AUTO -> "Auto: " + fallbackSources.replace("Auto fallback: ", "");
+            case GOOGLE -> "Google priority + " + fallbackSources;
+            case BAIDU -> "Baidu priority + " + fallbackSources;
+            case BING -> "Bing priority + " + fallbackSources;
+            case DUCKDUCKGO -> "DuckDuckGo priority + " + fallbackSources;
+        };
+    }
+
+    SearchSourceMix planDirectSearchSourceMix(
+            String engineName,
+            String market,
+            int queryCount,
+            SettingsModels.CrawlerSettings crawlerSettings
+    ) {
+        return planDirectSearchSourceMix(directSearchEngine(engineName), market, queryCount, crawlerSettings);
+    }
+
+    SearchSourceMix planDirectSearchSourceMix(
+            DirectSearchEngine engine,
+            String market,
+            int queryCount,
+            SettingsModels.CrawlerSettings crawlerSettings
+    ) {
+        int normalizedQueryCount = Math.max(queryCount, 0);
+        if (engine == DirectSearchEngine.AUTO || normalizedQueryCount == 0) {
+            int autoFetches = autoFallbackFetchCost(engine, market, crawlerSettings) * normalizedQueryCount;
+            return new SearchSourceMix(engine.name(), normalizedQueryCount, 0, autoFetches, normalizedQueryCount);
+        }
+
+        int primaryFetches = primaryFetchCost(engine, crawlerSettings) * normalizedQueryCount;
+        int fallbackFetchCost = autoFallbackFetchCost(engine, market, crawlerSettings);
+        int fallbackQueryLimit = 0;
+        if (fallbackFetchCost > 0 && primaryFetches > 1) {
+            fallbackQueryLimit = Math.min(normalizedQueryCount, Math.max(0, (primaryFetches - 1) / fallbackFetchCost));
+        }
+        int fallbackFetches = fallbackFetchCost * fallbackQueryLimit;
+        return new SearchSourceMix(engine.name(), normalizedQueryCount, primaryFetches, fallbackFetches, fallbackQueryLimit);
+    }
+
+    private int primaryFetchCost(DirectSearchEngine engine, SettingsModels.CrawlerSettings crawlerSettings) {
+        int pageLimit = normalizePositive(crawlerSettings.searchEnginePageLimit(), 2, 1);
+        return switch (engine) {
+            case GOOGLE -> normalizePositive(crawlerSettings.googleFallbackPageLimit(), 1, 1);
+            case BAIDU -> pageLimit;
+            case BING -> 1 + pageLimit;
+            case DUCKDUCKGO -> 1;
+            case AUTO -> 0;
+        };
+    }
+
+    private int autoFallbackFetchCost(
+            DirectSearchEngine primaryEngine,
+            String market,
+            SettingsModels.CrawlerSettings crawlerSettings
+    ) {
+        int pageLimit = normalizePositive(crawlerSettings.searchEnginePageLimit(), 2, 1);
+        int fetches = 0;
+        if (primaryEngine != DirectSearchEngine.BING) {
+            fetches += 1 + pageLimit;
+        }
+        if (!"China".equalsIgnoreCase(market) && primaryEngine != DirectSearchEngine.DUCKDUCKGO) {
+            fetches += 1;
+        }
+        if ("China".equalsIgnoreCase(market) && primaryEngine != DirectSearchEngine.BAIDU) {
+            fetches += pageLimit;
+        }
+        return fetches;
+    }
+
+    private DirectSearchEngine directSearchEngine(String name) {
+        if (name == null || name.isBlank()) {
+            return DirectSearchEngine.AUTO;
+        }
+        return switch (name.trim().toLowerCase(Locale.ROOT).replaceAll("[_\\s-]+", "")) {
+            case "google" -> DirectSearchEngine.GOOGLE;
+            case "baidu" -> DirectSearchEngine.BAIDU;
+            case "bing" -> DirectSearchEngine.BING;
+            case "duckduckgo", "duck" -> DirectSearchEngine.DUCKDUCKGO;
+            default -> DirectSearchEngine.AUTO;
+        };
     }
 
     private void collectGoogleFallback(
@@ -819,7 +1057,7 @@ public class WorkflowSearchService {
                 .sorted(Comparator.comparingInt((SearchCandidate candidate) -> scoreCandidate(candidate, market, industry, keywords, crawlerSettings)).reversed())
                 .toList();
 
-        int inspectionLimit = Math.min(sortedCandidates.size(), Math.max(searchLimit * 6, 30));
+        int inspectionLimit = Math.min(sortedCandidates.size(), Math.max(searchLimit * 8, 50));
         int maxParallelInspections = normalizePositive(crawlerSettings.maxParallelInspections(), 8, 1);
         ExecutorService executor = Executors.newFixedThreadPool(Math.min(maxParallelInspections, Math.max(2, inspectionLimit)));
         CompletionService<InspectedCandidate> completionService = new ExecutorCompletionService<>(executor);
@@ -1453,6 +1691,9 @@ public class WorkflowSearchService {
         if (normalized.contains("\u5de5\u4e1a\u96f6\u90e8\u4ef6") || normalized.contains("\u6736\u4ef6")) {
             return "industrial components";
         }
+        if (normalized.contains("\u5305\u88c5\u673a\u68b0") || normalized.contains("\u5305\u88c5\u8bbe\u5907") || normalized.contains("\u5305\u88c5\u673a")) {
+            return "packaging machinery";
+        }
         if (normalized.contains("\u901a\u7528\u673a\u68b0") || normalized.contains("\u8bbe\u5907")) {
             return "industrial machinery";
         }
@@ -1796,6 +2037,23 @@ public class WorkflowSearchService {
             phrases.add("machinery equipment");
             phrases.add("equipment");
         }
+        if (normalized.contains("packaging machinery") || normalized.contains("packaging equipment")) {
+            phrases.add("packaging machinery");
+            phrases.add("packaging equipment");
+            phrases.add("packing machine");
+            phrases.add("packaging machine");
+            phrases.add("packaging line");
+        }
+        if (normalized.contains("包装机械设备") || normalized.contains("包装机械") || normalized.contains("包装设备") || normalized.contains("包装机")) {
+            phrases.add("包装机械设备");
+            phrases.add("包装机械");
+            phrases.add("包装设备");
+            phrases.add("包装机");
+            phrases.add("灌装机");
+            phrases.add("封口机");
+            phrases.add("packaging machinery");
+            phrases.add("packaging equipment");
+        }
         if (normalized.contains("通用机械设备")) {
             phrases.add("通用机械设备");
             phrases.add("通用机械");
@@ -1904,6 +2162,27 @@ public class WorkflowSearchService {
     }
 
     private record SearchCandidate(String title, String url, String snippet, String source) {
+    }
+
+    record SearchSourceMix(
+            String engine,
+            int queryCount,
+            int primaryFetches,
+            int autoFallbackFetches,
+            int autoFallbackQueryLimit
+    ) {
+        double primaryShare() {
+            int totalFetches = primaryFetches + autoFallbackFetches;
+            return totalFetches == 0 ? 0 : (double) primaryFetches / totalFetches;
+        }
+    }
+
+    private enum DirectSearchEngine {
+        AUTO,
+        GOOGLE,
+        BAIDU,
+        BING,
+        DUCKDUCKGO
     }
 
     private record PageScanResult(String companyName, String website, String country, String contactName, String email, String channel, String fitNote) {

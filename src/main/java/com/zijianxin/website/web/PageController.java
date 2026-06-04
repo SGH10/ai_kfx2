@@ -36,6 +36,12 @@ public class PageController {
         return "forward:/ai-settings.html";
     }
 
+    @GetMapping("/business-profile")
+    public String businessProfilePage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/business-profile.html";
+    }
+
     @GetMapping("/mail-settings")
     public String mailSettingsPage(HttpServletResponse response) {
         noCache(response);

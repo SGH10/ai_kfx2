@@ -117,13 +117,13 @@ public final class SettingsModels {
     ) {
         public SearchSettings {
             serpApiKey = serpApiKey == null ? "" : serpApiKey;
-            defaultEngine = defaultEngine == null || defaultEngine.isBlank() ? "Google" : defaultEngine;
+            defaultEngine = defaultEngine == null || defaultEngine.isBlank() ? "Auto" : defaultEngine;
             resultsPerPage = resultsPerPage <= 0 ? 12 : resultsPerPage;
             linkedinApiKey = linkedinApiKey == null ? "" : linkedinApiKey;
         }
 
         public static SearchSettings defaults() {
-            return new SearchSettings("", "Google", 12, "");
+            return new SearchSettings("", "Auto", 12, "");
         }
     }
 

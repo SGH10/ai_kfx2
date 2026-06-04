@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>通用设置 | 一分钟科技</title>
     <meta name="description" content="语言、时区、默认入口和缓存策略配置。" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=8" />
   </head>
   <body class="site-body">
-    <header class="system-header">
+    <header class="system-header ref-settings-header">
       <a class="back-link" href="/">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
           <path d="m15 18-6-6 6-6"></path>
@@ -37,6 +37,12 @@
                 <path d="M12 2 4 6v12l8 4 8-4V6l-8-4Zm0 2.2 5.8 2.9L12 10 6.2 7.1 12 4.2Zm-6 4.7 5 2.5v6.4l-5-2.5V8.9Zm7 8.9v-6.4l5-2.5v6.4l-5 2.5Z" />
               </svg>
               <span data-i18n="settings.nav.modelConfig">模型配置</span>
+            </a>
+            <a class="settings-link" data-settings-path="/business-profile" href="/business-profile">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4 5.75A2.75 2.75 0 0 1 6.75 3h10.5A2.75 2.75 0 0 1 20 5.75v12.5A2.75 2.75 0 0 1 17.25 21H6.75A2.75 2.75 0 0 1 4 18.25V5.75ZM6.75 5A.75.75 0 0 0 6 5.75v12.5c0 .41.34.75.75.75h10.5c.41 0 .75-.34.75-.75V5.75a.75.75 0 0 0-.75-.75H6.75ZM8 8h8v2H8V8Zm0 4h8v2H8v-2Zm0 4h5v2H8v-2Z" />
+              </svg>
+              <span data-i18n="settings.nav.businessProfile">业务资料</span>
             </a>
           </div>
 
@@ -209,6 +215,7 @@
           "general.brand.subtitle": "通用系统偏好中心",
           "settings.nav.group.ai": "AI 模型",
           "settings.nav.modelConfig": "模型配置",
+          "settings.nav.businessProfile": "业务资料",
           "settings.nav.group.search": "搜索引擎",
           "settings.nav.searchApi": "搜索 API",
           "settings.nav.crawlerConfig": "爬虫配置",
@@ -245,6 +252,7 @@
           "general.brand.subtitle": "General System Preferences",
           "settings.nav.group.ai": "AI Model",
           "settings.nav.modelConfig": "Model Config",
+          "settings.nav.businessProfile": "Business Profile",
           "settings.nav.group.search": "Search Engine",
           "settings.nav.searchApi": "Search API",
           "settings.nav.crawlerConfig": "Crawler Config",
@@ -279,6 +287,6 @@
       };
     </script>
     <script src="/main.js?v=4"></script>
-    <script src="/settings.js?v=6"></script>
+    <script src="/settings.js?v=8"></script>
   </body>
 </html>

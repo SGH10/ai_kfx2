@@ -16,6 +16,11 @@
       return;
     }
 
+    if (path === "/business-profile") {
+      bindBusinessProfileSettings(settings);
+      return;
+    }
+
     if (path === "/crawler-settings") {
       bindSearchSettings(settings);
       return;
@@ -49,13 +54,6 @@
     setValue("#ai-api-key", settings.ai.apiKey);
     setValue("#ai-model", settings.ai.model);
     setValue("#ai-base-url", settings.ai.baseUrl);
-    setValue("#ai-default-company-name", settings.ai.defaultCompanyName);
-    setValue("#ai-default-product-name", settings.ai.defaultProductName);
-    setValue("#ai-default-language", settings.ai.defaultLanguage);
-    setValue("#ai-default-tone", settings.ai.defaultTone);
-    setValue("#ai-default-value-proposition", settings.ai.defaultValueProposition);
-    setValue("#ai-default-call-to-action", settings.ai.defaultCallToAction);
-    setValue("#ai-default-optimization-logic", settings.ai.defaultOptimizationLogic);
 
     document.querySelector("#test-ai-connection")?.addEventListener("click", async () => {
       const button = document.querySelector("#test-ai-connection");
@@ -75,7 +73,7 @@
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify(buildAiPayload())
+          body: JSON.stringify(buildAiPayload(settings.ai))
         });
 
         const rawText = await response.text();
@@ -109,9 +107,29 @@
       event.preventDefault();
       await saveSettings(
         "/api/settings/ai",
-        buildAiPayload(),
+        buildAiPayload(settings.ai),
         "#ai-settings-result",
-        t("AI 配置已保存，开发信页默认值会同步更新。", "AI settings saved. Outreach page defaults have been updated.")
+        t("AI 模型配置已保存。", "AI model settings saved.")
+      );
+    });
+  }
+
+  function bindBusinessProfileSettings(settings) {
+    setValue("#ai-default-company-name", settings.ai.defaultCompanyName);
+    setValue("#ai-default-product-name", settings.ai.defaultProductName);
+    setValue("#ai-default-language", settings.ai.defaultLanguage);
+    setValue("#ai-default-tone", settings.ai.defaultTone);
+    setValue("#ai-default-value-proposition", settings.ai.defaultValueProposition);
+    setValue("#ai-default-call-to-action", settings.ai.defaultCallToAction);
+    setValue("#ai-default-optimization-logic", settings.ai.defaultOptimizationLogic);
+
+    document.querySelector("#business-profile-form")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await saveSettings(
+        "/api/settings/ai",
+        buildAiPayload(settings.ai),
+        "#business-profile-result",
+        t("业务资料已保存，开发信页默认值会同步更新。", "Business profile saved. Outreach defaults have been updated.")
       );
     });
   }
@@ -124,6 +142,7 @@
 
     const serpApiKeyInput = document.querySelector("#search-serp-api-key");
     const testSerpApiKeyButton = document.querySelector("#test-serp-api-key");
+    const resetSearchSettingsButton = document.querySelector("#search-settings-reset");
     let serpApiStatusState = valueOf("#search-serp-api-key") ? "pending" : "empty";
     let isTestingSerpApiKey = false;
     const syncSerpApiStatus = () => {
@@ -190,6 +209,20 @@
         isTestingSerpApiKey = false;
         syncSerpApiStatus();
       }
+    });
+
+    resetSearchSettingsButton?.addEventListener("click", () => {
+      setValue("#search-serp-api-key", "");
+      setValue("#search-default-engine", "Auto");
+      setValue("#search-results-per-page", 12);
+      setValue("#search-linkedin-api-key", "");
+      serpApiStatusState = "empty";
+      syncSerpApiStatus();
+      setResult(
+        "#search-settings-result",
+        t("已恢复默认，点击保存配置后生效。", "Defaults restored. Click Save Settings to apply."),
+        true
+      );
     });
 
     document.querySelector("#search-settings-form")?.addEventListener("submit", async (event) => {
@@ -398,19 +431,19 @@
     element.classList.add(success ? "is-success" : "is-warning");
   }
 
-  function buildAiPayload() {
+  function buildAiPayload(baseAi = {}) {
     return {
-      provider: valueOf("#ai-provider"),
-      apiKey: valueOf("#ai-api-key"),
-      model: valueOf("#ai-model"),
-      baseUrl: valueOf("#ai-base-url"),
-      defaultCompanyName: valueOf("#ai-default-company-name"),
-      defaultProductName: valueOf("#ai-default-product-name"),
-      defaultValueProposition: valueOf("#ai-default-value-proposition"),
-      defaultLanguage: valueOf("#ai-default-language"),
-      defaultTone: valueOf("#ai-default-tone"),
-      defaultCallToAction: valueOf("#ai-default-call-to-action"),
-      defaultOptimizationLogic: valueOf("#ai-default-optimization-logic")
+      provider: valueOrFallback("#ai-provider", baseAi.provider),
+      apiKey: valueOrFallback("#ai-api-key", baseAi.apiKey),
+      model: valueOrFallback("#ai-model", baseAi.model),
+      baseUrl: valueOrFallback("#ai-base-url", baseAi.baseUrl),
+      defaultCompanyName: valueOrFallback("#ai-default-company-name", baseAi.defaultCompanyName),
+      defaultProductName: valueOrFallback("#ai-default-product-name", baseAi.defaultProductName),
+      defaultValueProposition: valueOrFallback("#ai-default-value-proposition", baseAi.defaultValueProposition),
+      defaultLanguage: valueOrFallback("#ai-default-language", baseAi.defaultLanguage),
+      defaultTone: valueOrFallback("#ai-default-tone", baseAi.defaultTone),
+      defaultCallToAction: valueOrFallback("#ai-default-call-to-action", baseAi.defaultCallToAction),
+      defaultOptimizationLogic: valueOrFallback("#ai-default-optimization-logic", baseAi.defaultOptimizationLogic)
     };
   }
 
@@ -430,6 +463,11 @@
 
   function valueOf(selector) {
     return String(document.querySelector(selector)?.value ?? "").trim();
+  }
+
+  function valueOrFallback(selector, fallbackValue) {
+    const element = document.querySelector(selector);
+    return element ? String(element.value ?? "").trim() : String(fallbackValue ?? "").trim();
   }
 
   function numberOf(selector, fallbackValue) {
