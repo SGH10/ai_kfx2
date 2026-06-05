@@ -43,7 +43,8 @@
     customers: [],
     selectedIds: new Set(),
     activeController: null,
-    requestedLimit: 50,
+    configuredLimit: 12,
+    requestedLimit: 12,
     maxSearchDurationMs: 300000,
     startTime: 0,
     timerInterval: null,
@@ -118,17 +119,15 @@
     if (!raw) {
       return t("search.table.officialWebsite");
     }
-    if (currentLocale() !== "en") {
-      return raw;
-    }
-    if (raw === "官网") {
+
+    if (raw === "官网" || raw === "Official website") {
       return t("search.table.officialWebsite");
     }
-    if (raw === "搜索引擎 + 官网") {
-      return "Search engine + website";
+    if (raw === "搜索引擎 + 官网" || raw === "Search engine + website") {
+      return t("search.table.searchEngineWebsite");
     }
-    if (raw === "公开搜索") {
-      return "Public search";
+    if (raw === "公开搜索" || raw === "Public search") {
+      return t("search.table.publicSearch");
     }
     return raw;
   }
@@ -232,10 +231,12 @@
         return;
       }
       const settings = await response.json();
-      searchState.requestedLimit = Number(settings.search?.resultsPerPage || 50);
+      const configuredLimit = normalizeRequestedLimit(settings.search?.resultsPerPage, 12);
+      searchState.configuredLimit = configuredLimit;
+      searchState.requestedLimit = configuredLimit;
       searchState.maxSearchDurationMs = Number(settings.crawler?.maxSearchDurationMs || 300000);
       if (requestedLimitInput) {
-        requestedLimitInput.value = String(searchState.requestedLimit);
+        requestedLimitInput.value = String(configuredLimit);
       }
     } catch (error) {
       console.error("Failed to load search settings:", error);
@@ -366,7 +367,7 @@
       : "";
     const market = String(marketPreset?.value || "").trim();
     const description = String(targetDescription?.value || "").trim();
-    const requestedLimit = normalizeRequestedLimit(requestedLimitInput?.value, searchState.requestedLimit, 50);
+    const requestedLimit = normalizeRequestedLimit(requestedLimitInput?.value, searchState.configuredLimit, 12);
     const depth = String(searchDepth?.value || "standard");
 
     let resolvedIndustry = industry;
@@ -401,7 +402,7 @@
         ...data,
         requestedLimit: normalizeRequestedLimit(
           data?.requestedLimit,
-          searchState.requestedLimit,
+          searchState.configuredLimit,
           data?.stats?.totalCustomers,
           data?.customers?.length
         )
@@ -425,7 +426,7 @@
 
     try {
       const data = JSON.parse(cached);
-      applySearchResponse(data);
+      applySearchResponse(data, { preserveFormLimit: true });
       setSearchStatus(data.customers?.length ? "search.status.complete" : "search.status.noResults", data.customers?.length ? "complete" : "error");
     } catch (error) {
       localStorage.removeItem(searchStorageKey);
@@ -438,13 +439,14 @@
     }
   }
 
-  function applySearchResponse(data) {
+  function applySearchResponse(data, options = {}) {
     searchState.lastResponse = data;
     searchState.customers = Array.isArray(data.customers) ? data.customers : [];
     searchState.selectedIds = new Set(searchState.customers.map((customer) => customer.id));
-    syncRequestedLimit(
-      resolveResponseRequestedLimit(data)
-    );
+    searchState.requestedLimit = resolveResponseRequestedLimit(data);
+    if (!options.preserveFormLimit && requestedLimitInput) {
+      requestedLimitInput.value = String(searchState.requestedLimit);
+    }
 
     const summary = data.summary || buildCompletedSummary(data);
     searchSummary.textContent = localizeSearchText(summary, data);
@@ -546,8 +548,8 @@
     return compacted.length > 0 ? compacted.slice(0, 3) : [logs[0]];
   }
 
-  function renderStats(stats) {
-    const target = searchState.requestedLimit || 1;
+  function renderStats(stats, targetOverride = null) {
+    const target = normalizeRequestedLimit(targetOverride, searchState.requestedLimit, searchState.configuredLimit, 1);
     const found = stats.totalCustomers || 0;
 
     statTotal.textContent = target;
@@ -728,14 +730,7 @@
         return Math.round(number);
       }
     }
-    return 50;
-  }
-
-  function syncRequestedLimit(value) {
-    searchState.requestedLimit = normalizeRequestedLimit(value, searchState.requestedLimit, 50);
-    if (requestedLimitInput) {
-      requestedLimitInput.value = String(searchState.requestedLimit);
-    }
+    return 12;
   }
 
   function resolveResponseRequestedLimit(data) {
@@ -743,8 +738,8 @@
       data?.requestedLimit,
       data?.config?.requestedLimit,
       data?.searchConfig?.requestedLimit,
-      searchState.requestedLimit,
-      50
+      searchState.configuredLimit,
+      12
     );
   }
 
@@ -995,10 +990,9 @@
     const requestedLimit = normalizeRequestedLimit(
       item.requestedLimit,
       item.config?.requestedLimit,
-      searchState.requestedLimit,
-      50
+      searchState.configuredLimit,
+      12
     );
-    syncRequestedLimit(requestedLimit);
 
     const data = {
       summary: item.summary,
@@ -1020,7 +1014,7 @@
     };
 
     localStorage.setItem(searchStorageKey, JSON.stringify(data));
-    applySearchResponse(data);
+    applySearchResponse(data, { preserveFormLimit: true });
     const restoredSummary = currentLocale() === "en"
       ? `Restored from history: ${item.summary} (${item.resultCount} leads)`
       : `从历史记录恢复：${item.summary}（${item.resultCount} 位客户）`;

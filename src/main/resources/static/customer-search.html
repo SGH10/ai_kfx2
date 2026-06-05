@@ -44,7 +44,7 @@
           <button type="button" class="is-active" data-locale="zh-CN">中文</button>
           <button type="button" data-locale="en">EN</button>
         </div>
-        <a class="icon-button" href="/crawler-settings" title="System Settings">
+        <a class="icon-button" href="/ai-settings" title="System Settings">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="m19.43 12.98.04-.48-.04-.48 2.03-1.58a.65.65 0 0 0 .15-.82l-1.92-3.32a.65.65 0 0 0-.78-.29l-2.39.96a7.2 7.2 0 0 0-.83-.48l-.36-2.54a.66.66 0 0 0-.65-.55h-3.84a.66.66 0 0 0-.65.55l-.36 2.54c-.29.13-.56.29-.83.48l-2.39-.96a.65.65 0 0 0-.78.29L2.38 9.62a.65.65 0 0 0 .15.82l2.03 1.58-.04.48.04.48-2.03 1.58a.65.65 0 0 0-.15.82l1.92 3.32c.17.29.52.41.83.29l2.39-.96c.27.19.54.35.83.48l.36 2.54c.05.32.32.55.65.55h3.84c.33 0 .6-.23.65-.55l.36-2.54c.29-.13.56-.29.83-.48l2.39.96c.31.12.66 0 .83-.29l1.92-3.32a.65.65 0 0 0-.15-.82l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z" />
           </svg>
@@ -55,7 +55,7 @@
     <main class="workspace-page">
       <div class="workspace-shell">
         <aside class="workspace-sidebar search-sidebar-ref">
-          <form id="search-form" class="form-stack search-form">
+          <form id="search-form" class="form-stack search-form" autocomplete="off">
             <div class="sidebar-panel ref-sidebar-head">
               <span class="sidebar-kicker" data-i18n="search.sidebarKicker">搜索配置</span>
               <label class="input-group">
@@ -83,11 +83,11 @@
             <label class="input-group">
               <span data-i18n="search.industry">行业领域</span>
               <select class="select-input" name="industryPreset" id="industry-preset">
-                <option value="" data-i18n="search.industry.all">全部行业</option>
+                <option value="" selected data-i18n="search.industry.all">全部行业</option>
                 <option value="CNC/金属加工" data-i18n="search.industry.cncMetalworking">CNC/金属加工</option>
                 <option value="工业自动化" data-i18n="search.industry.automation">工业自动化</option>
                 <option value="工业零部件" data-i18n="search.industry.components">工业零部件</option>
-                <option value="包装机械设备" selected data-i18n="search.industry.machinery">包装机械设备</option>
+                <option value="包装机械设备" data-i18n="search.industry.machinery">包装机械设备</option>
                 <option value="电子制造" data-i18n="search.industry.electronics">电子制造</option>
                 <option value="医疗器械" data-i18n="search.industry.medical">医疗器械</option>
                 <option value="custom" data-i18n="search.industry.custom">自定义</option>
@@ -121,7 +121,7 @@
 
             <label class="input-group">
               <span data-i18n="search.targetCount">目标客户数（可自定义）</span>
-              <input class="text-input" id="requested-limit" name="requestedLimitInput" type="number" min="10" max="200" value="50" />
+              <input class="text-input" id="requested-limit" name="requestedLimitInput" type="number" min="1" max="200" value="12" autocomplete="off" />
             </label>
 
             <button id="search-submit" class="action-button orange wide search-primary-button" type="submit" data-i18n="search.startButton">开始AI搜索</button>
@@ -214,7 +214,7 @@
                     <th></th>
                     <th data-i18n="search.table.company">公司信息</th>
                     <th data-i18n="search.table.contact">联系方式</th>
-                    <th data-i18n="search.table.channel">社交媒体</th>
+                    <th data-i18n="search.table.channel">来源渠道</th>
                     <th data-i18n="search.table.fit">匹配度</th>
                     <th data-i18n="search.table.action">操作</th>
                   </tr>
@@ -359,11 +359,13 @@
           "search.export": "导出Excel",
           "search.table.company": "公司信息",
           "search.table.contact": "联系方式",
-          "search.table.channel": "社交媒体",
+          "search.table.channel": "来源渠道",
           "search.table.fit": "匹配度",
           "search.table.action": "操作",
           "search.table.noEmail": "未找到公开邮箱",
           "search.table.officialWebsite": "官网",
+          "search.table.searchEngineWebsite": "搜索引擎 + 官网",
+          "search.table.publicSearch": "公开搜索",
           "search.table.view": "查看",
           "search.table.createOutreach": "生成开发信",
           "search.table.fitHigh": "高",
@@ -388,7 +390,7 @@
           "search.error.failed": "客户搜索失败，请检查服务状态后重试。",
           "search.csv.company": "公司名称",
           "search.csv.contact": "联系方式",
-          "search.csv.channel": "社交媒体",
+          "search.csv.channel": "来源渠道",
           "search.csv.fit": "匹配度",
           "search.csv.website": "官网",
           "search.modal.country": "国家/地区",
@@ -463,6 +465,8 @@
           "search.table.action": "Action",
           "search.table.noEmail": "No public email found",
           "search.table.officialWebsite": "Official website",
+          "search.table.searchEngineWebsite": "Search engine + website",
+          "search.table.publicSearch": "Public search",
           "search.table.view": "View",
           "search.table.createOutreach": "Create Outreach",
           "search.table.fitHigh": "High",
@@ -502,6 +506,6 @@
       };
     </script>
     <script src="/main.js?v=7"></script>
-    <script src="/customer-search.js?v=28"></script>
+    <script src="/customer-search.js?v=32"></script>
   </body>
 </html>
