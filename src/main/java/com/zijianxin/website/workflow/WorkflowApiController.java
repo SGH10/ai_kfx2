@@ -34,6 +34,14 @@ public class WorkflowApiController {
         return workflowService.searchCustomers(request);
     }
 
+    @PostMapping("/customers/debug-inspect")
+    public ResponseEntity<WorkflowModels.CustomerLead> debugInspectCustomerUrl(
+            @RequestBody WorkflowModels.DebugInspectRequest request
+    ) {
+        WorkflowModels.CustomerLead lead = workflowService.inspectCustomerUrlForDebug(request);
+        return lead == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(lead);
+    }
+
     @PostMapping("/outreach/draft")
     public WorkflowModels.DraftResponse generateDraft(
             @RequestBody WorkflowModels.DraftRequest request
