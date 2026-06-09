@@ -217,6 +217,26 @@ class WorkflowSearchServiceTest {
     }
 
     @Test
+    void foreignSearchRejectsObviousChinaSupplierSites() {
+        assertThat(service.fallbackCandidateAllowedForTest(
+                "JLCPCB PCB manufacturer",
+                "https://www.jlc.com/",
+                "Shenzhen China PCB prototype manufacturer products contact",
+                "electronics manufacturing",
+                "USA",
+                "pcb"
+        )).isFalse();
+        assertThat(service.fallbackCandidateAllowedForTest(
+                "\u4eac\u4e1c\u5de5\u4e1a",
+                "https://www.jingdongindustrials.com/",
+                "\u4e2d\u56fd\u5de5\u4e1a\u54c1\u4f9b\u5e94\u94fe industrial products supplier contact",
+                "\u5de5\u4e1a\u96f6\u90e8\u4ef6",
+                "USA",
+                ""
+        )).isFalse();
+    }
+
+    @Test
     void chinaIndustrialPartsQueriesUseHighYieldNativeTerms() {
         var queries = service.buildSearchQueries("工业零部件", "China", "", "ALL");
 
@@ -298,6 +318,23 @@ class WorkflowSearchServiceTest {
                 .anyMatch(query -> query.startsWith("American "))
                 .anyMatch(query -> query.startsWith("site:.us "));
         assertThat(queries.get(0)).doesNotStartWith("site:.us ");
+    }
+
+    @Test
+    void customChineseIndustryBuildsConcreteForeignMarketQueries() {
+        var queries = service.buildSearchQueries("\u5de5\u4e1a\u96f6\u90e8\u4ef6", "USA", "", "ALL");
+
+        assertThat(queries)
+                .anyMatch(query -> query.contains("United States industrial components"))
+                .anyMatch(query -> query.contains("American industrial components"))
+                .noneMatch(query -> query.equals("United States manufacturer official website"));
+    }
+
+    @Test
+    void foreignMarketsInspectLargerCandidatePool() {
+        assertThat(service.inspectionLimitForTest(300, 18, "USA")).isEqualTo(216);
+        assertThat(service.inspectionLimitForTest(300, 18, "Germany")).isEqualTo(216);
+        assertThat(service.inspectionLimitForTest(300, 18, "China")).isEqualTo(144);
     }
 
     @Test
