@@ -12,7 +12,9 @@ public final class WorkflowModels {
             String market,
             String keywords,
             String companySize,
-            Integer requestedLimit
+            Integer requestedLimit,
+            String targetDescription,
+            String searchDepth
     ) {
     }
 
@@ -47,6 +49,14 @@ public final class WorkflowModels {
             SearchStats stats,
             List<SearchLogEntry> logs,
             List<CustomerLead> customers
+    ) {
+    }
+
+    public record DebugInspectRequest(
+            String url,
+            String market,
+            String industry,
+            String keywords
     ) {
     }
 

@@ -33,6 +33,15 @@ public class WorkflowService {
         return workflowSearchService.getLastSearchResponse();
     }
 
+    public WorkflowModels.CustomerLead inspectCustomerUrlForDebug(WorkflowModels.DebugInspectRequest request) {
+        return workflowSearchService.inspectUrlForDebug(
+                request == null ? "" : request.url(),
+                request == null ? "China" : request.market(),
+                request == null ? "" : request.industry(),
+                request == null ? "" : request.keywords()
+        );
+    }
+
     public WorkflowModels.DraftResponse generateDraft(WorkflowModels.DraftRequest request) {
         return workflowDraftService.generateDraft(request);
     }

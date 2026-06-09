@@ -120,11 +120,27 @@
       return t("search.table.officialWebsite");
     }
 
+    const lower = raw.toLowerCase();
+    const locale = currentLocale();
+    const engineLabels = [
+      { pattern: "google", zh: "谷歌", en: "Google" },
+      { pattern: "bing", zh: "Bing", en: "Bing" },
+      { pattern: "baidu", zh: "百度", en: "Baidu" },
+      { pattern: "duckduckgo", zh: "DuckDuckGo", en: "DuckDuckGo" },
+      { pattern: "brave", zh: "Brave", en: "Brave" },
+      { pattern: "360", zh: "360搜索", en: "360 Search" },
+      { pattern: "so.com", zh: "360搜索", en: "360 Search" }
+    ];
+    const engine = engineLabels.find((item) => lower.includes(item.pattern));
+    if (engine) {
+      return locale === "en" ? engine.en : engine.zh;
+    }
+
     if (raw === "官网" || raw === "Official website") {
       return t("search.table.officialWebsite");
     }
     if (raw === "搜索引擎 + 官网" || raw === "Search engine + website") {
-      return t("search.table.searchEngineWebsite");
+      return locale === "en" ? "Search engine" : "搜索引擎";
     }
     if (raw === "公开搜索" || raw === "Public search") {
       return t("search.table.publicSearch");
@@ -375,7 +391,6 @@
     let resolvedMarket = market;
 
     if (description) {
-      resolvedKeywords = resolvedKeywords || description;
       if (description.includes("中国")) {
         resolvedMarket = "中国";
       } else if (description.includes("美国")) {
@@ -392,7 +407,9 @@
       market: resolvedMarket,
       keywords: resolvedKeywords,
       companySize,
-      requestedLimit
+      requestedLimit,
+      targetDescription: description,
+      searchDepth: depth
     };
   }
 
@@ -835,10 +852,12 @@
         timestamp: Date.now(),
         summary: buildHistorySummary(payload),
         config: {
+          targetDescription: payload.targetDescription,
           industry: payload.industry,
           market: payload.market,
           keywords: payload.keywords,
           companySize: payload.companySize,
+          searchDepth: payload.searchDepth,
           requestedLimit: payload.requestedLimit
         },
         requestedLimit: payload.requestedLimit,
@@ -859,6 +878,7 @@
 
   function buildHistorySummary(payload) {
     const parts = [];
+    if (payload.targetDescription) parts.push(payload.targetDescription.slice(0, 24));
     if (payload.industry) parts.push(payload.industry);
     if (payload.market && payload.market !== "全部") parts.push(payload.market);
     if (parts.length === 0) return payload.keywords || "AI搜索";
@@ -939,6 +959,7 @@
 
   function buildHistoryTagsHtml(config) {
     const tags = [];
+    if (config.targetDescription) tags.push(config.targetDescription.slice(0, 20));
     if (config.industry) tags.push(config.industry);
     if (config.market && config.market !== "全部") tags.push(config.market);
     if (config.companySize) tags.push(config.companySize);
