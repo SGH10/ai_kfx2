@@ -1641,6 +1641,27 @@ public class WorkflowSearchService {
             }
         }
 
+        if (!"China".equalsIgnoreCase(market)
+                && !"ALL".equalsIgnoreCase(market)
+                && candidates.size() < Math.min(collectionLimit, Math.max(leadLimit * 4, 72))) {
+            int before = candidates.size();
+            List<String> supplementalQueries = buildSupplementalForeignQueries(market, industry, keywords);
+            for (String supplementalQuery : supplementalQueries) {
+                if (candidates.size() >= collectionLimit || candidates.size() >= Math.max(leadLimit * 6, 108)) {
+                    break;
+                }
+                collectFromBingRss(supplementalQuery, candidates, seenHosts, collectionLimit, timeoutMs);
+                collectFromBingHtml(supplementalQuery, candidates, seenHosts, collectionLimit, timeoutMs, crawlerSettings.searchEnginePageLimit());
+                if (candidates.size() < Math.max(leadLimit * 4, 72)) {
+                    collectFromBrave(supplementalQuery, candidates, seenHosts, collectionLimit, Math.min(timeoutMs, 5000));
+                    collectFromDuckDuckGo(supplementalQuery, candidates, seenHosts, collectionLimit, Math.min(timeoutMs, 3000));
+                }
+            }
+            if (candidates.size() > before) {
+                session.log("Supplemental foreign-market queries added " + (candidates.size() - before) + " candidates.");
+            }
+        }
+
         session.log("Collected " + candidates.size() + " candidate websites.");
         return candidates;
     }
@@ -1680,6 +1701,62 @@ public class WorkflowSearchService {
             supplemental.add("生产厂家 官网 有限公司");
         }
         return new ArrayList<>(supplemental);
+    }
+
+    private List<String> buildSupplementalForeignQueries(String market, String industry, String keywords) {
+        LinkedHashSet<String> supplemental = new LinkedHashSet<>();
+        String marketName = marketSearchName(market);
+        String marketAdjective = marketAdjective(market);
+        String marketSite = marketSite(market);
+        List<String> industryTerms = foreignQueryTerms(buildSearchHints(industry), industry);
+        List<String> keywordTerms = foreignQueryTerms(buildSearchHints(keywords), keywords);
+
+        for (String term : industryTerms.stream().limit(5).toList()) {
+            supplemental.add(joinQuery(marketName, term, "manufacturer contact"));
+            supplemental.add(joinQuery(marketName, term, "supplier official website"));
+            supplemental.add(joinQuery(marketAdjective, term, "company contact"));
+            supplemental.add(joinQuery(term, marketName, "sales email"));
+            supplemental.add(joinQuery(term, marketName, "distributor contact"));
+            supplemental.add(joinQuery(term, marketName, "business contact"));
+            if (!marketSite.isBlank()) {
+                supplemental.add(joinQuery(marketSite, term, "contact"));
+            }
+            for (String keywordTerm : keywordTerms.stream().limit(2).toList()) {
+                supplemental.add(joinQuery(marketName, keywordTerm, term, "company"));
+                supplemental.add(joinQuery(keywordTerm, term, marketName, "contact"));
+            }
+        }
+
+        if (supplemental.isEmpty()) {
+            supplemental.add(joinQuery(marketName, "manufacturer official website contact"));
+            supplemental.add(joinQuery(marketName, "supplier company contact"));
+            supplemental.add(joinQuery(marketAdjective, "industrial company sales email"));
+        }
+        return new ArrayList<>(supplemental);
+    }
+
+    private List<String> foreignQueryTerms(List<String> hints, String fallbackValue) {
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        if (hints != null) {
+            hints.stream()
+                    .map(this::toEnglishHint)
+                    .map(this::cleanText)
+                    .filter(term -> !term.isBlank())
+                    .filter(term -> !containsChineseScript(term))
+                    .filter(this::looksUsefulQueryTerm)
+                    .limit(6)
+                    .forEach(terms::add);
+        }
+
+        String fallbackTerm = toEnglishHint(fallbackValue);
+        if (!fallbackTerm.isBlank() && !containsChineseScript(fallbackTerm) && looksUsefulQueryTerm(fallbackTerm)) {
+            terms.add(fallbackTerm);
+        }
+        if (terms.isEmpty()) {
+            terms.add("manufacturer");
+            terms.add("industrial supplier");
+        }
+        return new ArrayList<>(terms);
     }
 
     private void collectFromDirectEngine(
@@ -2336,7 +2413,7 @@ public class WorkflowSearchService {
                 .sorted(Comparator.comparingInt((SearchCandidate candidate) -> scoreCandidate(candidate, market, industry, keywords, crawlerSettings)).reversed())
                 .toList();
 
-        int inspectionLimit = Math.min(sortedCandidates.size(), Math.max(searchLimit * 8, 50));
+        int inspectionLimit = inspectionLimit(sortedCandidates.size(), searchLimit, market);
         int maxParallelInspections = normalizePositive(crawlerSettings.maxParallelInspections(), 8, 1);
         ExecutorService executor = Executors.newFixedThreadPool(Math.min(maxParallelInspections, Math.max(2, inspectionLimit)));
         CompletionService<InspectedCandidate> completionService = new ExecutorCompletionService<>(executor);
@@ -2575,6 +2652,9 @@ public class WorkflowSearchService {
         if (clearlyConflictsWithMarket(host, combined, market)) {
             return false;
         }
+        if (clearlyChinaSupplierForForeignMarket(host, combined, market)) {
+            return false;
+        }
         if (requiresSearchResultMarketMatch(market) && !matchesMarketSignal(host, combined, market)) {
             return false;
         }
@@ -2613,6 +2693,9 @@ public class WorkflowSearchService {
             return false;
         }
         if (clearlyConflictsWithMarket(host, combined, market)) {
+            return false;
+        }
+        if (clearlyChinaSupplierForForeignMarket(host, combined, market)) {
             return false;
         }
         if (!matchesKeywords(industry, keywords, combined)) {
@@ -2706,6 +2789,9 @@ public class WorkflowSearchService {
         if (clearlyConflictsWithMarket(host, combined, market)) {
             return false;
         }
+        if (clearlyChinaSupplierForForeignMarket(host, combined, market)) {
+            return false;
+        }
         if (matchesKeywords(industry, keywords, combined)
                 && (matchesMarketSignal(host, combined, market) || allowsForeignMarketWithoutExplicitSignal(host, combined, market))) {
             return true;
@@ -2723,6 +2809,44 @@ public class WorkflowSearchService {
                 && !"ALL".equalsIgnoreCase(market)
                 && !"China".equalsIgnoreCase(market)
                 && !clearlyConflictsWithMarket(host, combined, market);
+    }
+
+    int inspectionLimitForTest(int candidateCount, int searchLimit, String market) {
+        return inspectionLimit(candidateCount, searchLimit, market);
+    }
+
+    private int inspectionLimit(int candidateCount, int searchLimit, String market) {
+        int limit = "China".equalsIgnoreCase(market)
+                ? Math.max(searchLimit * 8, 50)
+                : Math.max(searchLimit * 12, 120);
+        return Math.min(Math.max(candidateCount, 0), limit);
+    }
+
+    private boolean clearlyChinaSupplierForForeignMarket(String host, String text, String market) {
+        if (market == null
+                || market.isBlank()
+                || "ALL".equalsIgnoreCase(market)
+                || "China".equalsIgnoreCase(market)) {
+            return false;
+        }
+        String normalizedHost = normalizeHost(host);
+        String lower = cleanText(text).toLowerCase(Locale.ROOT);
+        if (hasMarketTopLevelDomain(normalizedHost, market)) {
+            return false;
+        }
+        boolean strongChinaSignal = hasChinaMarketSignal(normalizedHost, lower)
+                || lower.contains("made in china")
+                || lower.contains("china manufacturer")
+                || lower.contains("china supplier")
+                || lower.contains("chinese manufacturer")
+                || lower.contains("shenzhen")
+                || lower.contains("dongguan")
+                || lower.contains("guangdong")
+                || lower.contains("alibaba")
+                || lower.contains("1688")
+                || containsChineseScript(lower);
+        boolean foreignMarketSignal = matchesMarketSignal(normalizedHost, lower, market);
+        return strongChinaSignal && !foreignMarketSignal;
     }
 
     private boolean looksLikeRelaxedChinaFallbackCandidate(String host, String combined, String industry, String market) {
@@ -3620,25 +3744,47 @@ public class WorkflowSearchService {
         if (normalized.isEmpty()) {
             return "";
         }
+        if (normalized.contains("手机配件")
+                || normalized.contains("智能手机配件")
+                || normalized.contains("phone accessories")
+                || normalized.contains("smartphone accessories")
+                || normalized.contains("mobile phone accessories")) {
+            return "phone accessories";
+        }
+        if (normalized.contains("pcb") || normalized.contains("pcba") || normalized.contains("线路板") || normalized.contains("电路板")) {
+            return "pcb assembly";
+        }
         if (normalized.contains("cnc") || normalized.contains("\u673a\u5e8a") || normalized.contains("\u91d1\u5c5e\u52a0\u5de5")) {
             return "cnc machining";
         }
-        if (normalized.contains("\u5de5\u4e1a\u81ea\u52a8\u5316")) {
+        if (normalized.contains("\u5de5\u4e1a\u81ea\u52a8\u5316") || normalized.contains("自动化") || normalized.contains("工控")) {
             return "industrial automation";
         }
-        if (normalized.contains("\u5de5\u4e1a\u96f6\u90e8\u4ef6") || normalized.contains("\u6736\u4ef6")) {
+        if (normalized.contains("\u5de5\u4e1a\u96f6\u90e8\u4ef6")
+                || normalized.contains("\u6736\u4ef6")
+                || normalized.contains("零部件")
+                || normalized.contains("零件")
+                || normalized.contains("工业配件")
+                || normalized.contains("机械配件")
+                || normalized.contains("五金")) {
             return "industrial components";
         }
-        if (normalized.contains("\u5305\u88c5\u673a\u68b0") || normalized.contains("\u5305\u88c5\u8bbe\u5907") || normalized.contains("\u5305\u88c5\u673a")) {
+        if (normalized.contains("\u5305\u88c5\u673a\u68b0")
+                || normalized.contains("\u5305\u88c5\u8bbe\u5907")
+                || normalized.contains("\u5305\u88c5\u673a")
+                || normalized.contains("包装")) {
             return "packaging machinery";
         }
-        if (normalized.contains("\u901a\u7528\u673a\u68b0") || normalized.contains("\u8bbe\u5907")) {
+        if (normalized.contains("\u901a\u7528\u673a\u68b0")
+                || normalized.contains("\u8bbe\u5907")
+                || normalized.contains("机械设备")
+                || normalized.contains("工业设备")) {
             return "industrial machinery";
         }
         if (normalized.contains("\u6570\u63a7")) {
             return "cnc";
         }
-        if (normalized.contains("\u7535\u5b50\u5236\u9020")) {
+        if (normalized.contains("\u7535\u5b50\u5236\u9020") || normalized.contains("电子制造") || normalized.contains("电子产品")) {
             return "electronics manufacturing";
         }
         if (normalized.contains("\u533b\u7597\u5668\u68b0")) {
