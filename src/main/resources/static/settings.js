@@ -5,7 +5,6 @@
   const builtInAiProviders = new Set([
     "Qwen",
     "OpenAI",
-    "Azure OpenAI",
     "Anthropic",
     "DeepSeek",
     "GLM"
@@ -26,12 +25,6 @@
       "qwen-max"
     ],
     OpenAI: [
-      "gpt-5.5",
-      "gpt-5.4",
-      "gpt-5.4-mini",
-      "gpt-5.4-nano"
-    ],
-    "Azure OpenAI": [
       "gpt-5.5",
       "gpt-5.4",
       "gpt-5.4-mini",
