@@ -165,6 +165,15 @@ svg {
   flex-shrink: 0;
 }
 
+.history-toggle {
+  min-width: 112px;
+  white-space: nowrap;
+}
+
+.history-toggle span {
+  font-weight: 800;
+}
+
 .search-time {
   font-size: 0.9rem;
   color: var(--muted);
