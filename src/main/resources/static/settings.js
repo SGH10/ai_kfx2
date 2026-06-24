@@ -1,5 +1,67 @@
 (() => {
   const path = window.location.pathname;
+  const customProviderValue = "__custom_provider__";
+  const customModelValue = "__custom_model__";
+  const builtInAiProviders = new Set([
+    "Qwen",
+    "OpenAI",
+    "Azure OpenAI",
+    "Anthropic",
+    "DeepSeek",
+    "GLM"
+  ]);
+  const aiModelOptionsByProvider = {
+    Qwen: [
+      "qwen3.7-max",
+      "qwen3-max",
+      "qwen3.7-plus",
+      "qwen3.6-plus",
+      "qwen3.5-plus",
+      "qwen-plus",
+      "qwen-plus-latest",
+      "qwen3.5-flash",
+      "qwen-flash",
+      "qwen-turbo",
+      "qwen-long",
+      "qwen-max"
+    ],
+    OpenAI: [
+      "gpt-5.5",
+      "gpt-5.4",
+      "gpt-5.4-mini",
+      "gpt-5.4-nano"
+    ],
+    "Azure OpenAI": [
+      "gpt-5.5",
+      "gpt-5.4",
+      "gpt-5.4-mini",
+      "gpt-5.4-nano"
+    ],
+    Anthropic: [
+      "claude-fable-5",
+      "claude-opus-4-8",
+      "claude-sonnet-4-6",
+      "claude-haiku-4-5"
+    ],
+    DeepSeek: [
+      "deepseek-v4-flash",
+      "deepseek-v4-pro",
+      "deepseek-chat",
+      "deepseek-reasoner"
+    ],
+    GLM: [
+      "glm-5.2",
+      "glm-5.1",
+      "glm-5-turbo",
+      "glm-5",
+      "glm-4.7",
+      "glm-4.7-flash",
+      "glm-4.7-flashx",
+      "glm-4.6",
+      "glm-4.5-air",
+      "glm-4.5-flash"
+    ]
+  };
 
   init().catch((error) => {
     console.error("Settings bootstrap failed:", error);
@@ -50,13 +112,19 @@
   }
 
   function bindAiSettings(settings) {
-    setValue("#ai-provider", settings.ai.provider);
+    hydrateAiProvider(settings.ai.provider);
     setValue("#ai-api-key", settings.ai.apiKey);
-    setValue("#ai-model", settings.ai.model);
+    hydrateAiModel(settings.ai.model);
     setValue("#ai-base-url", settings.ai.baseUrl);
+    document.querySelector("#ai-provider")?.addEventListener("change", handleAiProviderChange);
+    document.querySelector("#ai-model")?.addEventListener("change", syncCustomModelField);
+    window.addEventListener("leadflow:locale-changed", refreshAiModelOptionsForLocale);
 
     document.querySelector("#test-ai-connection")?.addEventListener("click", async () => {
       const button = document.querySelector("#test-ai-connection");
+      if (!validateAiManualFields("#ai-test-result")) {
+        return;
+      }
       if (button) {
         button.disabled = true;
       }
@@ -105,6 +173,9 @@
 
     document.querySelector("#ai-settings-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!validateAiManualFields("#ai-settings-result")) {
+        return;
+      }
       await saveSettings(
         "/api/settings/ai",
         buildAiPayload(settings.ai),
@@ -433,9 +504,9 @@
 
   function buildAiPayload(baseAi = {}) {
     return {
-      provider: valueOrFallback("#ai-provider", baseAi.provider),
+      provider: resolveAiProvider(baseAi.provider),
       apiKey: valueOrFallback("#ai-api-key", baseAi.apiKey),
-      model: valueOrFallback("#ai-model", baseAi.model),
+      model: resolveAiModel(baseAi.model),
       baseUrl: valueOrFallback("#ai-base-url", baseAi.baseUrl),
       defaultCompanyName: valueOrFallback("#ai-default-company-name", baseAi.defaultCompanyName),
       defaultProductName: valueOrFallback("#ai-default-product-name", baseAi.defaultProductName),
@@ -445,6 +516,146 @@
       defaultCallToAction: valueOrFallback("#ai-default-call-to-action", baseAi.defaultCallToAction),
       defaultOptimizationLogic: valueOrFallback("#ai-default-optimization-logic", baseAi.defaultOptimizationLogic)
     };
+  }
+
+  function hydrateAiProvider(provider) {
+    const resolvedProvider = String(provider || "").trim();
+    if (!resolvedProvider || builtInAiProviders.has(resolvedProvider)) {
+      setValue("#ai-provider", resolvedProvider || "Qwen");
+      setValue("#ai-custom-provider", "");
+    } else if (resolvedProvider === "Custom API") {
+      setValue("#ai-provider", customProviderValue);
+      setValue("#ai-custom-provider", "");
+    } else {
+      setValue("#ai-provider", customProviderValue);
+      setValue("#ai-custom-provider", resolvedProvider);
+    }
+    syncCustomProviderField();
+  }
+
+  function handleAiProviderChange() {
+    syncCustomProviderField();
+    hydrateAiModel("");
+  }
+
+  function syncCustomProviderField() {
+    const isCustom = valueOf("#ai-provider") === customProviderValue;
+    const group = document.querySelector("#ai-custom-provider-group");
+    const input = document.querySelector("#ai-custom-provider");
+    group?.classList.toggle("is-hidden", !isCustom);
+    if (input) {
+      input.required = isCustom;
+    }
+  }
+
+  function resolveAiProvider(fallbackProvider) {
+    if (valueOf("#ai-provider") !== customProviderValue) {
+      return valueOrFallback("#ai-provider", fallbackProvider);
+    }
+
+    const customProvider = valueOf("#ai-custom-provider");
+    const fallback = String(fallbackProvider || "").trim();
+    return customProvider || (fallback === "Custom API" ? "" : fallback) || "Qwen";
+  }
+
+  function hydrateAiModel(model) {
+    const selectedModel = String(model || "").trim();
+    const modelSelect = document.querySelector("#ai-model");
+    if (!modelSelect) {
+      return;
+    }
+
+    renderAiModelOptions(selectedModel);
+    syncCustomModelField();
+  }
+
+  function renderAiModelOptions(selectedModel) {
+    const modelSelect = document.querySelector("#ai-model");
+    if (!modelSelect) {
+      return;
+    }
+
+    const provider = valueOf("#ai-provider");
+    const isCustomProvider = provider === customProviderValue;
+    const options = isCustomProvider ? [] : aiModelOptionsByProvider[provider] || [];
+    modelSelect.innerHTML = "";
+
+    options.forEach((model) => {
+      modelSelect.add(new Option(model, model));
+    });
+    modelSelect.add(new Option(t("手动输入模型", "Manual Model"), customModelValue));
+
+    if (isCustomProvider) {
+      modelSelect.value = customModelValue;
+      setValue("#ai-custom-model", selectedModel);
+      return;
+    }
+
+    if (selectedModel && options.includes(selectedModel)) {
+      modelSelect.value = selectedModel;
+      setValue("#ai-custom-model", "");
+      return;
+    }
+
+    if (selectedModel) {
+      modelSelect.value = customModelValue;
+      setValue("#ai-custom-model", selectedModel);
+      return;
+    }
+
+    modelSelect.value = options[0] || customModelValue;
+    setValue("#ai-custom-model", "");
+  }
+
+  function syncCustomModelField() {
+    const isCustom = valueOf("#ai-model") === customModelValue;
+    const group = document.querySelector("#ai-custom-model-group");
+    const input = document.querySelector("#ai-custom-model");
+    group?.classList.toggle("is-hidden", !isCustom);
+    if (input) {
+      input.required = isCustom;
+      if (!isCustom) {
+        input.value = "";
+      }
+    }
+  }
+
+  function resolveAiModel(fallbackModel) {
+    if (valueOf("#ai-model") !== customModelValue) {
+      return valueOrFallback("#ai-model", fallbackModel);
+    }
+
+    const customModel = valueOf("#ai-custom-model");
+    const fallback = String(fallbackModel || "").trim();
+    return customModel || (fallback === customModelValue ? "" : fallback);
+  }
+
+  function refreshAiModelOptionsForLocale() {
+    hydrateAiModel(resolveAiModel(""));
+  }
+
+  function validateAiManualFields(resultSelector) {
+    if (valueOf("#ai-provider") === customProviderValue && !valueOf("#ai-custom-provider")) {
+      setResult(
+        resultSelector,
+        t("请输入厂商名称。", "Enter the provider name."),
+        false
+      );
+      document.querySelector("#ai-custom-provider")?.focus();
+      return false;
+    }
+
+    if (valueOf("#ai-model") === customModelValue && !valueOf("#ai-custom-model")) {
+      setResult(
+        resultSelector,
+        t("请输入模型名称。", "Enter the model name."),
+        false
+      );
+      document.querySelector("#ai-custom-model")?.focus();
+      return false;
+    }
+
+    return true;
   }
 
   function formatAiTestSuccess(result) {

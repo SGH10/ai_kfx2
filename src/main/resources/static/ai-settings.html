@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI 模型配置 | 一分钟科技</title>
     <meta name="description" content="配置 AI 模型的 API 密钥、模型参数与开发信默认逻辑。" />
-    <link rel="stylesheet" href="/styles.css?v=8" />
+    <link rel="stylesheet" href="/styles.css?v=9" />
   </head>
   <body class="site-body">
     <header class="system-header ref-settings-header">
@@ -118,8 +118,14 @@
                       <option value="Anthropic">Anthropic (Claude)</option>
                       <option value="DeepSeek">DeepSeek</option>
                       <option value="GLM" data-i18n="ai.provider.glm">智谱AI (GLM)</option>
-                      <option value="Custom API" data-i18n="ai.provider.custom">自定义 API</option>
+                      <option value="__custom_provider__" data-i18n="ai.provider.custom">手动输入厂商</option>
                     </select>
+                  </label>
+
+                  <label class="input-group setting-field full is-hidden" id="ai-custom-provider-group">
+                    <span data-i18n="ai.field.customProvider">厂商名称</span>
+                    <input class="text-input" id="ai-custom-provider" type="text" data-i18n-placeholder="ai.field.customProvider.placeholder" placeholder="例如：Moonshot、OpenRouter、硅基流动" />
+                    <span class="helper-text" data-i18n="ai.field.customProvider.helper">选择手动输入厂商时，这里会作为真实 API 服务商名称保存。</span>
                   </label>
 
                   <label class="input-group setting-field full">
@@ -138,8 +144,14 @@
                     <select class="select-input" id="ai-model">
                       <option value="qwen-max">qwen-max</option>
                       <option value="qwen-plus">qwen-plus</option>
-                      <option value="qwen-turbo">qwen-turbo</option>
+                      <option value="__custom_model__" data-i18n="ai.model.custom">手动输入模型</option>
                     </select>
+                  </label>
+
+                  <label class="input-group setting-field full is-hidden" id="ai-custom-model-group">
+                    <span data-i18n="ai.field.customModel">模型名称</span>
+                    <input class="text-input" id="ai-custom-model" type="text" data-i18n-placeholder="ai.field.customModel.placeholder" placeholder="例如：qwen-plus、gpt-5.4、deepseek-v4-flash" />
+                    <span class="helper-text" data-i18n="ai.field.customModel.helper">选择手动输入模型时，这里会作为真实模型名称保存。</span>
                   </label>
 
                   <label class="input-group setting-field full">
@@ -186,13 +198,20 @@
           "ai.field.provider": "API 服务商",
           "ai.provider.qwen": "阿里云通义千问 (Qwen)",
           "ai.provider.glm": "智谱AI (GLM)",
-          "ai.provider.custom": "自定义 API",
+          "ai.provider.custom": "手动输入厂商",
+          "ai.field.customProvider": "厂商名称",
+          "ai.field.customProvider.placeholder": "例如：Moonshot、OpenRouter、硅基流动",
+          "ai.field.customProvider.helper": "选择手动输入厂商时，这里会作为真实 API 服务商名称保存。",
           "ai.field.apiKey.placeholder": "输入 API Key",
           "ai.field.baseUrl.placeholder": "自定义 API 地址，留空则使用默认地址",
           "ai.field.baseUrl.helper": "自定义 API 地址，留空则使用默认地址。",
           "ai.field.testConn": "连接测试",
           "ai.btn.testConn": "测试连接",
-          "ai.field.model": "选择模型"
+          "ai.field.model": "选择模型",
+          "ai.model.custom": "手动输入模型",
+          "ai.field.customModel": "模型名称",
+          "ai.field.customModel.placeholder": "例如：qwen-plus、gpt-5.4、deepseek-v4-flash",
+          "ai.field.customModel.helper": "选择手动输入模型时，这里会作为真实模型名称保存。"
         },
         "en": {
           "__title": "AI Settings | One Minute Tech",
@@ -217,17 +236,24 @@
           "ai.field.provider": "Provider",
           "ai.provider.qwen": "Alibaba Cloud Qwen",
           "ai.provider.glm": "Zhipu AI (GLM)",
-          "ai.provider.custom": "Custom API",
+          "ai.provider.custom": "Manual Provider",
+          "ai.field.customProvider": "Provider Name",
+          "ai.field.customProvider.placeholder": "e.g. Moonshot, OpenRouter, SiliconFlow",
+          "ai.field.customProvider.helper": "When manual provider is selected, this value is saved as the real API provider name.",
           "ai.field.apiKey.placeholder": "Enter API Key",
           "ai.field.baseUrl.placeholder": "Custom API base URL, leave blank to use default",
           "ai.field.baseUrl.helper": "Custom API base URL. Leave blank to use the provider default.",
           "ai.field.testConn": "Connection Test",
           "ai.btn.testConn": "Test Connection",
-          "ai.field.model": "Model"
+          "ai.field.model": "Model",
+          "ai.model.custom": "Manual Model",
+          "ai.field.customModel": "Model Name",
+          "ai.field.customModel.placeholder": "e.g. qwen-plus, gpt-5.4, deepseek-v4-flash",
+          "ai.field.customModel.helper": "When manual model is selected, this value is saved as the real model name."
         }
       };
     </script>
     <script src="/main.js?v=5"></script>
-    <script src="/settings.js?v=8"></script>
+    <script src="/settings.js?v=10"></script>
   </body>
 </html>
