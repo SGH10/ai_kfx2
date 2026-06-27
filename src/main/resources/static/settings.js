@@ -55,6 +55,11 @@
       "glm-4.5-flash"
     ]
   };
+  const aiTestState = {
+    kind: "",
+    payload: null,
+    success: false
+  };
 
   init().catch((error) => {
     console.error("Settings bootstrap failed:", error);
@@ -111,7 +116,7 @@
     setValue("#ai-base-url", settings.ai.baseUrl);
     document.querySelector("#ai-provider")?.addEventListener("change", handleAiProviderChange);
     document.querySelector("#ai-model")?.addEventListener("change", syncCustomModelField);
-    window.addEventListener("leadflow:locale-changed", refreshAiModelOptionsForLocale);
+    window.addEventListener("leadflow:locale-changed", handleAiLocaleChange);
 
     document.querySelector("#test-ai-connection")?.addEventListener("click", async () => {
       const button = document.querySelector("#test-ai-connection");
@@ -127,6 +132,9 @@
         t("正在测试连接，请稍候...", "Testing connection, please wait..."),
         true
       );
+      aiTestState.kind = "pending";
+      aiTestState.payload = null;
+      aiTestState.success = true;
 
       try {
         const response = await fetch("/api/settings/ai/test", {
@@ -139,22 +147,31 @@
 
         const rawText = await response.text();
         if (!response.ok) {
+          aiTestState.kind = "error";
+          aiTestState.payload = rawText;
+          aiTestState.success = false;
           setResult(
             "#ai-test-result",
-            rawText || t("连接测试失败，请检查配置后重试。", "Connection test failed. Please review the configuration and try again."),
+            formatAiTestError(rawText),
             false
           );
           return;
         }
 
         const result = rawText ? JSON.parse(rawText) : null;
+        aiTestState.kind = "success";
+        aiTestState.payload = result;
+        aiTestState.success = true;
         const successMessage = formatAiTestSuccess(result);
         setResult("#ai-test-result", successMessage, true);
       } catch (error) {
         console.error("AI connection test failed:", error);
+        aiTestState.kind = "network-error";
+        aiTestState.payload = null;
+        aiTestState.success = false;
         setResult(
           "#ai-test-result",
-          t("连接测试失败，请检查网络或稍后重试。", "Connection test failed. Please check the network or try again later."),
+          formatAiTestNetworkError(),
           false
         );
       } finally {
@@ -627,11 +644,49 @@
     hydrateAiModel(resolveAiModel(""));
   }
 
+  function handleAiLocaleChange() {
+    refreshAiModelOptionsForLocale();
+    renderStoredAiTestResult();
+  }
+
+  function renderStoredAiTestResult() {
+    if (aiTestState.kind === "pending") {
+      setResult(
+        "#ai-test-result",
+        t("正在测试连接，请稍候...", "Testing connection, please wait..."),
+        true
+      );
+      return;
+    }
+
+    if (aiTestState.kind === "success") {
+      setResult("#ai-test-result", formatAiTestSuccess(aiTestState.payload), true);
+      return;
+    }
+
+    if (aiTestState.kind === "error") {
+      setResult("#ai-test-result", formatAiTestError(aiTestState.payload), false);
+      return;
+    }
+
+    if (aiTestState.kind === "network-error") {
+      setResult("#ai-test-result", formatAiTestNetworkError(), false);
+      return;
+    }
+
+    if (aiTestState.kind === "validation") {
+      setResult("#ai-test-result", formatAiValidationMessage(aiTestState.payload), false);
+    }
+  }
+
   function validateAiManualFields(resultSelector) {
     if (valueOf("#ai-provider") === customProviderValue && !valueOf("#ai-custom-provider")) {
+      aiTestState.kind = "validation";
+      aiTestState.payload = "provider";
+      aiTestState.success = false;
       setResult(
         resultSelector,
-        t("请输入厂商名称。", "Enter the provider name."),
+        formatAiValidationMessage("provider"),
         false
       );
       document.querySelector("#ai-custom-provider")?.focus();
@@ -639,9 +694,12 @@
     }
 
     if (valueOf("#ai-model") === customModelValue && !valueOf("#ai-custom-model")) {
+      aiTestState.kind = "validation";
+      aiTestState.payload = "model";
+      aiTestState.success = false;
       setResult(
         resultSelector,
-        t("请输入模型名称。", "Enter the model name."),
+        formatAiValidationMessage("model"),
         false
       );
       document.querySelector("#ai-custom-model")?.focus();
@@ -656,6 +714,81 @@
     const previewLabel = t("返回预览", "Response preview");
     const preview = result?.responsePreview ? `\n${previewLabel}: ${result.responsePreview}` : "";
     return t("连接测试成功。", "Connection test succeeded.") + requestUrl + preview;
+  }
+
+  function formatAiValidationMessage(type) {
+    if (type === "provider") {
+      return t("请输入厂商名称。", "Enter the provider name.");
+    }
+    return t("请输入模型名称。", "Enter the model name.");
+  }
+
+  function formatAiTestNetworkError() {
+    return t(
+      "连接测试失败，请检查网络或稍后重试。",
+      "Connection test failed. Please check the network or try again later."
+    );
+  }
+
+  function formatAiTestFallbackError() {
+    return t(
+      "连接测试失败，请检查配置后重试。",
+      "Connection test failed. Please review the configuration and try again."
+    );
+  }
+
+  function formatAiTestError(rawText) {
+    const raw = String(rawText || "").trim();
+    if (!raw) {
+      return formatAiTestFallbackError();
+    }
+
+    const lower = raw.toLowerCase();
+    const codeMatch = raw.match(/\((\d{3})\)/);
+    const statusCode = codeMatch ? codeMatch[1] : "";
+    let summary = "";
+
+    if (lower.includes("model") && (lower.includes("does not exist") || lower.includes("not found") || lower.includes("access"))) {
+      summary = t(
+        "模型不存在，或当前 API Key 没有权限使用该模型。",
+        "The model does not exist, or the current API key does not have access to it."
+      );
+    } else if (statusCode === "401" || lower.includes("unauthorized") || lower.includes("invalid api key") || lower.includes("invalid_api_key")) {
+      summary = t(
+        "API Key 无效、已过期，或没有正确传递。",
+        "The API key is invalid, expired, or was not sent correctly."
+      );
+    } else if (statusCode === "403" || lower.includes("forbidden") || lower.includes("permission")) {
+      summary = t(
+        "当前账号或 API Key 没有权限访问这个模型或接口。",
+        "The current account or API key does not have permission to access this model or endpoint."
+      );
+    } else if (statusCode === "404") {
+      summary = t(
+        "接口地址或模型不存在，请检查 Base URL 和模型名称是否匹配当前厂商。",
+        "The endpoint or model was not found. Check that the Base URL and model name match the selected provider."
+      );
+    } else if (statusCode === "429" || lower.includes("rate limit") || lower.includes("quota") || lower.includes("insufficient")) {
+      summary = t(
+        "请求过快、额度不足，或当前账号没有可用配额。",
+        "The request was rate-limited, quota is insufficient, or the account has no available capacity."
+      );
+    } else if (lower.includes("timeout") || lower.includes("timed out")) {
+      summary = t(
+        "连接超时，请检查网络、代理或 Base URL。",
+        "The request timed out. Check the network, proxy, or Base URL."
+      );
+    } else if (lower.includes("failed to connect") || lower.includes("connect")) {
+      summary = t(
+        "无法连接到 AI 网关，请检查 Base URL、网络或代理设置。",
+        "Could not connect to the AI gateway. Check the Base URL, network, or proxy settings."
+      );
+    } else {
+      summary = formatAiTestFallbackError();
+    }
+
+    const rawLabel = t("原始返回", "Raw response");
+    return `${summary}\n\n${rawLabel}:\n${raw}`;
   }
 
   function setValue(selector, value) {
