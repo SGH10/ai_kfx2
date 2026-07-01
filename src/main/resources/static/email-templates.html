@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>邮件模板 | 一分钟科技</title>
+    <meta name="description" content="维护开发信生成时使用的邮件模板、默认模板和模板指令。" />
+    <link rel="stylesheet" href="/styles.css?v=32" />
+  </head>
+  <body class="site-body">
+    <header class="system-header ref-settings-header">
+      <a class="back-link" href="/">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="m15 18-6-6 6-6"></path>
+        </svg>
+        <span data-i18n-shared="shared.backHome">返回首页</span>
+      </a>
+
+      <div class="brand-label" style="margin-right: auto;">
+        <strong data-i18n-shared="shared.systemSettings">系统设置</strong>
+        <span data-i18n="templates.brand.subtitle">开发信模板中心</span>
+      </div>
+
+      <div class="locale-switch" aria-label="语言切换">
+        <button type="button" class="is-active" data-locale="zh-CN">中文</button>
+        <button type="button" data-locale="en">EN</button>
+      </div>
+    </header>
+
+    <main class="system-page ref-settings-page">
+      <div class="settings-shell ref-settings-shell">
+        <aside class="settings-sidebar ref-settings-sidebar">
+          <div class="settings-nav-group">
+            <h3 data-i18n="settings.nav.group.ai">AI 模型</h3>
+            <a class="settings-link" data-settings-path="/ai-settings" href="/ai-settings">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2 4 6v12l8 4 8-4V6l-8-4Zm0 2.2 5.8 2.9L12 10 6.2 7.1 12 4.2Zm-6 4.7 5 2.5v6.4l-5-2.5V8.9Zm7 8.9v-6.4l5-2.5v6.4l-5 2.5Z" />
+              </svg>
+              <span data-i18n="settings.nav.modelConfig">模型配置</span>
+            </a>
+            <a class="settings-link" data-settings-path="/business-profile" href="/business-profile">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4 5.75A2.75 2.75 0 0 1 6.75 3h10.5A2.75 2.75 0 0 1 20 5.75v12.5A2.75 2.75 0 0 1 17.25 21H6.75A2.75 2.75 0 0 1 4 18.25V5.75ZM6.75 5A.75.75 0 0 0 6 5.75v12.5c0 .41.34.75.75.75h10.5c.41 0 .75-.34.75-.75V5.75a.75.75 0 0 0-.75-.75H6.75ZM8 8h8v2H8V8Zm0 4h8v2H8v-2Zm0 4h5v2H8v-2Z" />
+              </svg>
+              <span data-i18n="settings.nav.businessProfile">业务资料</span>
+            </a>
+          </div>
+
+          <div class="settings-nav-group">
+            <h3 data-i18n="settings.nav.group.search">搜索引擎</h3>
+            <a class="settings-link" data-settings-path="/crawler-settings" href="/crawler-settings">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="6"></circle>
+                <path d="m20 20-4.2-4.2"></path>
+              </svg>
+              <span data-i18n="settings.nav.searchApi">搜索 API</span>
+            </a>
+            <a class="settings-link" data-settings-path="/crawler-rules" href="/crawler-rules">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 3 4 7v5c0 5.25 3.44 10.23 8 11 4.56-.77 8-5.75 8-11V7l-8-4Z" />
+              </svg>
+              <span data-i18n="settings.nav.crawlerConfig">爬虫配置</span>
+            </a>
+          </div>
+
+          <div class="settings-nav-group">
+            <h3 data-i18n="settings.nav.group.mail">邮件服务</h3>
+            <a class="settings-link" data-settings-path="/mail-settings" href="/mail-settings">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M3 6.75A2.75 2.75 0 0 1 5.75 4h12.5A2.75 2.75 0 0 1 21 6.75v10.5A2.75 2.75 0 0 1 18.25 20H5.75A2.75 2.75 0 0 1 3 17.25V6.75Zm2.14.43L12 12.02l6.86-4.84A1.24 1.24 0 0 0 17.88 6H6.12a1.24 1.24 0 0 0-.98 1.18Z" />
+              </svg>
+              <span data-i18n="settings.nav.mailConfig">邮箱配置</span>
+            </a>
+            <a class="settings-link is-active" data-settings-path="/email-templates" href="/email-templates">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4 4h16v4H4V4Zm0 6h16v10H4V10Zm3 2v6h4v-6H7Zm6 0v2h4v-2h-4Zm0 4v2h4v-2h-4Z" />
+              </svg>
+              <span data-i18n="settings.nav.emailTemplates">邮件模板</span>
+            </a>
+          </div>
+
+          <div class="settings-nav-group">
+            <h3 data-i18n="settings.nav.group.system">系统</h3>
+            <a class="settings-link" data-settings-path="/general-settings" href="/general-settings">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M19.43 12.98 21.46 11.4a.65.65 0 0 0 .15-.82l-1.92-3.32a.65.65 0 0 0-.78-.29l-2.39.96a7.2 7.2 0 0 0-.83-.48l-.36-2.54a.66.66 0 0 0-.65-.55h-3.84a.66.66 0 0 0-.65.55l-.36 2.54c-.29.13-.56.29-.83.48l-2.39-.96a.65.65 0 0 0-.78.29L2.38 10.58a.65.65 0 0 0 .15.82l2.03 1.58-.04.48.04.48-2.03 1.58a.65.65 0 0 0-.15.82l1.92 3.32c.17.29.52.41.83.29l2.39-.96c.27.19.54.35.83.48l.36 2.54c.05.32.32.55.65.55h3.84c.33 0 .6-.23.65-.55l.36-2.54c.29-.13.56-.29.83-.48l2.39.96c.31.12.66 0 .83-.29l1.92-3.32a.65.65 0 0 0-.15-.82l-2.03-1.58.04-.48-.04-.48ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z" />
+              </svg>
+              <span data-i18n="settings.nav.generalSettings">通用设置</span>
+            </a>
+          </div>
+        </aside>
+
+        <section class="settings-main ref-settings-main">
+          <div class="settings-hero ref-settings-hero">
+            <h1 data-i18n="templates.hero.title">邮件模板</h1>
+            <p data-i18n="templates.hero.copy">维护开发信生成时可选的模板、默认模板和 AI 写作指令。</p>
+          </div>
+
+          <form id="template-settings-form" class="settings-stack ref-settings-stack">
+            <article class="setting-section ref-setting-panel">
+              <div class="settings-section-head ref-setting-head">
+                <div class="section-title-row">
+                  <span class="section-icon">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M4 4h16v4H4V4Zm0 6h16v10H4V10Zm3 2v6h4v-6H7Zm6 0v2h4v-2h-4Zm0 4v2h4v-2h-4Z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <h2 class="settings-section-title" data-i18n="templates.section.library.title">模板库</h2>
+                    <p class="summary-copy" data-i18n="templates.section.library.copy">开发信页面会读取这里启用的模板。</p>
+                  </div>
+                </div>
+                <span id="template-count-status" class="section-status green">0</span>
+              </div>
+
+              <div class="setting-body">
+                <div class="template-settings-layout">
+                  <aside class="template-list-panel">
+                    <div class="template-list-actions">
+                      <button id="template-new" class="action-button ghost section-action-button" type="button" data-i18n="templates.btn.new">新建</button>
+                      <button id="template-duplicate" class="action-button ghost section-action-button" type="button" data-i18n="templates.btn.duplicate">复制</button>
+                    </div>
+                    <div id="template-list" class="template-list" role="listbox" aria-label="Email templates"></div>
+                  </aside>
+
+                  <div class="template-editor-panel">
+                    <div class="setting-field-grid">
+                      <label class="input-group">
+                        <span data-i18n="templates.field.name">模板名称</span>
+                        <input id="template-name" class="text-input" type="text" data-i18n-placeholder="templates.placeholder.name" />
+                      </label>
+
+                      <label class="input-group">
+                        <span data-i18n="templates.field.language">模板语言</span>
+                        <select id="template-language" class="select-input">
+                          <option value="zh-CN" data-i18n="lang.zh-CN">中文</option>
+                          <option value="en" data-i18n="lang.en">英语</option>
+                          <option value="de" data-i18n="lang.de">德语</option>
+                          <option value="fr" data-i18n="lang.fr">法语</option>
+                          <option value="es" data-i18n="lang.es">西班牙语</option>
+                          <option value="ru" data-i18n="lang.ru">俄语</option>
+                          <option value="ar" data-i18n="lang.ar">阿拉伯语</option>
+                          <option value="pt" data-i18n="lang.pt">葡萄牙语</option>
+                        </select>
+                      </label>
+
+                      <label class="input-group">
+                        <span data-i18n="templates.field.scenario">适用场景</span>
+                        <input id="template-scenario" class="text-input" type="text" data-i18n-placeholder="templates.placeholder.scenario" />
+                      </label>
+
+                      <div class="template-editor-switches">
+                        <label class="inline-check">
+                          <input id="template-enabled" type="checkbox" />
+                          <span data-i18n="templates.field.enabled">启用</span>
+                        </label>
+                        <label class="inline-check">
+                          <input id="template-default" type="checkbox" />
+                          <span data-i18n="templates.field.default">设为默认</span>
+                        </label>
+                      </div>
+
+                      <label class="input-group setting-field full">
+                        <span data-i18n="templates.field.subject">邮件主题模板</span>
+                        <input id="template-subject" class="text-input" type="text" data-i18n-placeholder="templates.placeholder.subject" />
+                      </label>
+
+                      <label class="input-group setting-field full">
+                        <span data-i18n="templates.field.body">邮件正文模板</span>
+                        <textarea id="template-body" class="textarea-input" rows="12" data-i18n-placeholder="templates.placeholder.body"></textarea>
+                      </label>
+
+                      <label class="input-group setting-field full">
+                        <span data-i18n="templates.field.instruction">AI 使用说明</span>
+                        <textarea id="template-instruction" class="textarea-input" rows="5" data-i18n-placeholder="templates.placeholder.instruction"></textarea>
+                        <span class="helper-text" data-i18n="templates.field.instruction.helper">这里会作为额外写作规则传给 AI，例如语气、结构、禁用表达等。</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <div class="footer-actions right ref-settings-footer">
+              <div id="template-settings-result" class="helper-note"></div>
+              <button id="template-delete" class="action-button ghost" type="button" data-i18n="templates.btn.delete">删除模板</button>
+              <button id="template-reset" class="action-button ghost" type="button" data-i18n="settings.btn.reset">恢复默认</button>
+              <button class="action-button orange" type="submit" data-i18n="settings.btn.save">保存配置</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      window.pageTranslations = {
+        "zh-CN": {
+          "__title": "邮件模板 | 一分钟科技",
+          "settings.nav.group.ai": "AI 模型",
+          "settings.nav.modelConfig": "模型配置",
+          "settings.nav.businessProfile": "业务资料",
+          "settings.nav.group.search": "搜索引擎",
+          "settings.nav.searchApi": "搜索 API",
+          "settings.nav.crawlerConfig": "爬虫配置",
+          "settings.nav.group.mail": "邮件服务",
+          "settings.nav.mailConfig": "邮箱配置",
+          "settings.nav.emailTemplates": "邮件模板",
+          "settings.nav.group.system": "系统",
+          "settings.nav.generalSettings": "通用设置",
+          "settings.btn.save": "保存配置",
+          "settings.btn.reset": "恢复默认",
+          "lang.zh-CN": "中文",
+          "lang.en": "英语",
+          "lang.de": "德语",
+          "lang.fr": "法语",
+          "lang.es": "西班牙语",
+          "lang.ru": "俄语",
+          "lang.ar": "阿拉伯语",
+          "lang.pt": "葡萄牙语",
+          "templates.brand.subtitle": "开发信模板中心",
+          "templates.hero.title": "邮件模板",
+          "templates.hero.copy": "维护开发信生成时可选的模板、默认模板和 AI 写作指令。",
+          "templates.section.library.title": "模板库",
+          "templates.section.library.copy": "开发信页面会读取这里启用的模板。",
+          "templates.btn.new": "新建",
+          "templates.btn.duplicate": "复制",
+          "templates.btn.delete": "删除模板",
+          "templates.field.name": "模板名称",
+          "templates.field.language": "模板语言",
+          "templates.field.scenario": "适用场景",
+          "templates.field.enabled": "启用",
+          "templates.field.default": "设为默认",
+          "templates.field.subject": "邮件主题模板",
+          "templates.field.body": "邮件正文模板",
+          "templates.field.instruction": "AI 使用说明",
+          "templates.field.instruction.helper": "这里会作为额外写作规则传给 AI，例如语气、结构、禁用表达等。",
+          "templates.placeholder.name": "例如：初次接触（中文）",
+          "templates.placeholder.scenario": "例如：first-contact、follow-up、报价跟进",
+          "templates.placeholder.subject": "例如：关于 {{productName}} 的合作沟通",
+          "templates.placeholder.body": "可以使用 {{contactName}}、{{recipientCompany}}、{{productName}}、{{senderName}} 等占位符。",
+          "templates.placeholder.instruction": "例如：保持简短，先说明关联价值，再提出 15 分钟沟通请求。"
+        },
+        "en": {
+          "__title": "Email Templates | One Minute Tech",
+          "settings.nav.group.ai": "AI Model",
+          "settings.nav.modelConfig": "Model Config",
+          "settings.nav.businessProfile": "Business Profile",
+          "settings.nav.group.search": "Search Engine",
+          "settings.nav.searchApi": "Search API",
+          "settings.nav.crawlerConfig": "Crawler Config",
+          "settings.nav.group.mail": "Mail Service",
+          "settings.nav.mailConfig": "Mail Config",
+          "settings.nav.emailTemplates": "Email Templates",
+          "settings.nav.group.system": "System",
+          "settings.nav.generalSettings": "General Settings",
+          "settings.btn.save": "Save",
+          "settings.btn.reset": "Reset to Defaults",
+          "lang.zh-CN": "Chinese",
+          "lang.en": "English",
+          "lang.de": "German",
+          "lang.fr": "French",
+          "lang.es": "Spanish",
+          "lang.ru": "Russian",
+          "lang.ar": "Arabic",
+          "lang.pt": "Portuguese",
+          "templates.brand.subtitle": "Outreach Template Center",
+          "templates.hero.title": "Email Templates",
+          "templates.hero.copy": "Maintain selectable outreach templates, the default template, and AI writing instructions.",
+          "templates.section.library.title": "Template Library",
+          "templates.section.library.copy": "The outreach page reads enabled templates from here.",
+          "templates.btn.new": "New",
+          "templates.btn.duplicate": "Duplicate",
+          "templates.btn.delete": "Delete Template",
+          "templates.field.name": "Template Name",
+          "templates.field.language": "Template Language",
+          "templates.field.scenario": "Scenario",
+          "templates.field.enabled": "Enabled",
+          "templates.field.default": "Set as Default",
+          "templates.field.subject": "Subject Template",
+          "templates.field.body": "Email Body Template",
+          "templates.field.instruction": "AI Instructions",
+          "templates.field.instruction.helper": "These notes are sent to the AI as additional writing rules, such as tone, structure, and phrases to avoid.",
+          "templates.placeholder.name": "e.g. First Contact (English)",
+          "templates.placeholder.scenario": "e.g. first-contact, follow-up, quote follow-up",
+          "templates.placeholder.subject": "e.g. Potential fit around {{productName}}",
+          "templates.placeholder.body": "You can use placeholders such as {{contactName}}, {{recipientCompany}}, {{productName}}, and {{senderName}}.",
+          "templates.placeholder.instruction": "e.g. Keep it concise, explain the relevant value first, then suggest a 15-minute call."
+        }
+      };
+    </script>
+    <script src="/main.js?v=6"></script>
+    <script src="/settings.js?v=11"></script>
+  </body>
+</html>
