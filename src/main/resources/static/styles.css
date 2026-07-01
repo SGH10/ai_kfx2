@@ -1460,12 +1460,12 @@ svg {
 
 .selected-template-summary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   flex: 1 1 auto;
   align-items: flex-start;
   gap: 18px;
   margin-top: 28px;
-  min-height: 0;
+  min-height: 292px;
   padding: 28px;
   border-radius: 22px;
   border: 1px solid rgba(255, 152, 74, 0.18);
@@ -1486,7 +1486,9 @@ svg {
 .selected-template-copy {
   display: grid;
   gap: 4px;
+  align-content: start;
   min-width: 0;
+  min-height: 86px;
   padding-top: 2px;
 }
 
@@ -1498,10 +1500,19 @@ svg {
 }
 
 .selected-template-copy strong {
+  display: -webkit-box;
+  min-height: 2.7em;
+  max-height: 2.7em;
+  overflow: hidden;
   color: var(--text);
   font-family: var(--font-display);
-  font-size: clamp(1.32rem, 1.25vw, 1.55rem);
-  line-height: 1.12;
+  font-size: clamp(1.18rem, 1.08vw, 1.36rem);
+  line-height: 1.22;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .template-selector-row {
@@ -1512,12 +1523,14 @@ svg {
 }
 
 .selected-template-meta {
+  min-height: 1.5em;
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.5;
-  word-break: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .selected-template-actions {
