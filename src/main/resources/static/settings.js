@@ -60,6 +60,64 @@
     payload: null,
     success: false
   };
+  const defaultEmailTemplates = [
+    {
+      id: "tpl-first-zh",
+      name: "初次接触（中文）",
+      language: "zh-CN",
+      scenario: "first-contact",
+      subject: "想和 {{recipientCompany}} 聊聊 {{productName}} 的合作机会",
+      body: `{{contactName}}您好，
+
+我是 {{senderName}}，来自 {{senderCompany}}，我们在做 {{productName}} 相关方案。留意到 {{recipientCompany}} 的业务方向后，感觉我们的产品可能能在 {{valueProposition}} 这类场景里提供一些实际帮助。
+
+如果您现在也在关注类似需求，我可以先发一份简短资料，或者约 15 分钟沟通一下，看是否值得进一步对接。
+
+祝好，
+{{senderName}}`,
+      instruction: "适合第一次联系目标客户。不要机械照抄模板，要根据客户公司和产品价值写出具体、自然的合作理由；如果没有真实联系人姓名，只用“您好”。",
+      enabled: true
+    },
+    {
+      id: "tpl-first-en",
+      name: "First Contact (English)",
+      language: "en",
+      scenario: "first-contact",
+      subject: "Potential fit around {{productName}}",
+      body: `Hi {{contactName}},
+
+I am {{senderName}} from {{senderCompany}}. We provide {{productName}} and help teams like {{recipientCompany}} {{valueProposition}}.
+
+Would you be open to a short 15-minute call to see whether there is a fit?
+
+Best regards,
+{{senderName}}`,
+      instruction: "Use for first-touch outbound emails. Keep it concise, relevant, and focused on one clear call to action.",
+      enabled: true
+    },
+    {
+      id: "tpl-follow-up-en",
+      name: "Follow-up Email",
+      language: "en",
+      scenario: "follow-up",
+      subject: "Quick follow-up on {{productName}}",
+      body: `Hi {{contactName}},
+
+I wanted to quickly follow up on my previous note about {{productName}}.
+
+If this is relevant for {{recipientCompany}}, I would be happy to share a short overview or a few practical examples.
+
+Best,
+{{senderName}}`,
+      instruction: "Use after no reply. Keep it lighter than the first email and avoid repeating the whole pitch.",
+      enabled: true
+    }
+  ];
+  const templateState = {
+    defaultTemplateId: "",
+    items: [],
+    selectedId: ""
+  };
 
   init().catch((error) => {
     console.error("Settings bootstrap failed:", error);
@@ -93,6 +151,11 @@
 
     if (path === "/mail-settings") {
       bindMailSettings(settings);
+      return;
+    }
+
+    if (path === "/email-templates") {
+      bindTemplateSettings(settings);
       return;
     }
 
@@ -450,6 +513,314 @@
     });
   }
 
+  function bindTemplateSettings(settings) {
+    hydrateTemplateState(settings.templates);
+    renderTemplateList();
+    renderSelectedTemplate();
+
+    document.querySelector("#template-list")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-template-id]");
+      if (!button) {
+        return;
+      }
+      persistSelectedTemplateForm();
+      templateState.selectedId = button.getAttribute("data-template-id");
+      renderTemplateList();
+      renderSelectedTemplate();
+    });
+
+    document.querySelector("#template-new")?.addEventListener("click", () => {
+      persistSelectedTemplateForm();
+      const template = createBlankTemplate();
+      templateState.items.push(template);
+      templateState.selectedId = template.id;
+      if (!templateState.defaultTemplateId) {
+        templateState.defaultTemplateId = template.id;
+      }
+      renderTemplateList();
+      renderSelectedTemplate();
+      setResult("#template-settings-result", t("已新建模板，保存配置后生效。", "Template created. Save settings to apply."), true);
+    });
+
+    document.querySelector("#template-duplicate")?.addEventListener("click", () => {
+      persistSelectedTemplateForm();
+      const current = getSelectedTemplate();
+      if (!current) {
+        return;
+      }
+      const copy = {
+        ...current,
+        id: createTemplateId(),
+        name: `${current.name || t("未命名模板", "Untitled Template")} ${t("副本", "Copy")}`
+      };
+      templateState.items.push(copy);
+      templateState.selectedId = copy.id;
+      renderTemplateList();
+      renderSelectedTemplate();
+      setResult("#template-settings-result", t("已复制模板，保存配置后生效。", "Template duplicated. Save settings to apply."), true);
+    });
+
+    document.querySelector("#template-delete")?.addEventListener("click", () => {
+      persistSelectedTemplateForm();
+      if (templateState.items.length <= 1) {
+        setResult("#template-settings-result", t("至少需要保留一个模板。", "Keep at least one template."), false);
+        return;
+      }
+      const current = getSelectedTemplate();
+      if (!current) {
+        return;
+      }
+      templateState.items = templateState.items.filter((item) => item.id !== current.id);
+      if (templateState.defaultTemplateId === current.id) {
+        templateState.defaultTemplateId = templateState.items[0].id;
+      }
+      templateState.selectedId = templateState.items[0].id;
+      renderTemplateList();
+      renderSelectedTemplate();
+      setResult("#template-settings-result", t("已删除模板，保存配置后生效。", "Template deleted. Save settings to apply."), true);
+    });
+
+    document.querySelector("#template-reset")?.addEventListener("click", () => {
+      const defaults = normalizeTemplateSettings(null);
+      templateState.items = defaults.items;
+      templateState.defaultTemplateId = defaults.defaultTemplateId;
+      templateState.selectedId = defaults.defaultTemplateId;
+      renderTemplateList();
+      renderSelectedTemplate();
+      setResult("#template-settings-result", t("已恢复默认模板，保存配置后生效。", "Default templates restored. Save settings to apply."), true);
+    });
+
+    document.querySelector("#template-default")?.addEventListener("change", (event) => {
+      if (event.target.checked && templateState.selectedId) {
+        templateState.defaultTemplateId = templateState.selectedId;
+        renderTemplateList();
+      } else if (!event.target.checked) {
+        event.target.checked = true;
+      }
+    });
+
+    document.querySelector("#template-enabled")?.addEventListener("change", persistSelectedTemplateForm);
+    document.querySelector("#template-language")?.addEventListener("change", persistSelectedTemplateForm);
+
+    document.querySelector("#template-settings-form")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      persistSelectedTemplateForm();
+      if (!validateTemplateState()) {
+        return;
+      }
+
+      const response = await fetch("/api/settings/templates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(buildTemplateSettingsPayload())
+      });
+
+      if (!response.ok) {
+        setResult("#template-settings-result", t("模板保存失败，请稍后重试。", "Template save failed. Please try again."), false);
+        return;
+      }
+
+      hydrateTemplateState(await response.json());
+      renderTemplateList();
+      renderSelectedTemplate();
+      setResult("#template-settings-result", t("邮件模板已保存，开发信页面会使用最新模板。", "Email templates saved. The outreach page will use the latest templates."), true);
+    });
+
+    window.addEventListener("leadflow:locale-changed", () => {
+      persistSelectedTemplateForm();
+      renderTemplateList();
+      renderSelectedTemplate();
+    });
+  }
+
+  function hydrateTemplateState(templateSettings) {
+    const normalized = normalizeTemplateSettings(templateSettings);
+    templateState.defaultTemplateId = normalized.defaultTemplateId;
+    templateState.items = normalized.items;
+    templateState.selectedId = normalized.defaultTemplateId;
+  }
+
+  function normalizeTemplateSettings(templateSettings) {
+    const sourceItems = Array.isArray(templateSettings?.items) && templateSettings.items.length > 0
+      ? templateSettings.items
+      : defaultEmailTemplates;
+    const items = sourceItems.map(normalizeTemplate).filter((item) => item.id);
+    const normalizedItems = items.length > 0 ? items : defaultEmailTemplates.map(normalizeTemplate);
+    const requestedDefaultId = String(templateSettings?.defaultTemplateId || "").trim();
+    const defaultTemplateId = normalizedItems.some((item) => item.id === requestedDefaultId)
+      ? requestedDefaultId
+      : normalizedItems[0].id;
+    return {
+      defaultTemplateId,
+      items: normalizedItems
+    };
+  }
+
+  function normalizeTemplate(template) {
+    return {
+      id: String(template?.id || createTemplateId()).trim(),
+      name: String(template?.name || t("未命名模板", "Untitled Template")).trim(),
+      language: String(template?.language || "zh-CN").trim(),
+      scenario: String(template?.scenario || "first-contact").trim(),
+      subject: String(template?.subject || ""),
+      body: String(template?.body || ""),
+      instruction: String(template?.instruction || ""),
+      enabled: template?.enabled !== false
+    };
+  }
+
+  function renderTemplateList() {
+    const list = document.querySelector("#template-list");
+    const status = document.querySelector("#template-count-status");
+    if (!list) {
+      return;
+    }
+
+    if (status) {
+      status.textContent = t(`${templateState.items.length} 个模板`, `${templateState.items.length} templates`);
+    }
+
+    list.innerHTML = templateState.items
+      .map((template) => {
+        const isSelected = template.id === templateState.selectedId;
+        const isDefault = template.id === templateState.defaultTemplateId;
+        const statusLabel = template.enabled ? t("启用", "Enabled") : t("停用", "Disabled");
+        return `
+          <button class="template-list-item ${isSelected ? "is-active" : ""}" type="button" data-template-id="${escapeHtml(template.id)}" role="option" aria-selected="${isSelected}">
+            <span>
+              <strong>${escapeHtml(template.name)}</strong>
+              <small>${escapeHtml(languageLabel(template.language))} · ${escapeHtml(template.scenario || t("未设置场景", "No scenario"))}</small>
+            </span>
+            <span class="template-list-badges">
+              ${isDefault ? `<em>${escapeHtml(t("默认", "Default"))}</em>` : ""}
+              <em class="${template.enabled ? "green" : "gray"}">${escapeHtml(statusLabel)}</em>
+            </span>
+          </button>
+        `;
+      })
+      .join("");
+  }
+
+  function renderSelectedTemplate() {
+    const current = getSelectedTemplate();
+    const form = document.querySelector("#template-settings-form");
+    if (!current) {
+      form?.classList.add("is-empty");
+      return;
+    }
+
+    form?.classList.remove("is-empty");
+    setValue("#template-name", current.name);
+    setValue("#template-language", current.language);
+    setValue("#template-scenario", current.scenario);
+    setValue("#template-subject", current.subject);
+    setValue("#template-body", current.body);
+    setValue("#template-instruction", current.instruction);
+    setChecked("#template-enabled", current.enabled);
+    setChecked("#template-default", current.id === templateState.defaultTemplateId);
+  }
+
+  function persistSelectedTemplateForm() {
+    const current = getSelectedTemplate();
+    if (!current) {
+      return;
+    }
+
+    current.name = valueOf("#template-name") || current.name || t("未命名模板", "Untitled Template");
+    current.language = valueOf("#template-language") || "zh-CN";
+    current.scenario = valueOf("#template-scenario") || "first-contact";
+    current.subject = valueOf("#template-subject");
+    current.body = valueOf("#template-body");
+    current.instruction = valueOf("#template-instruction");
+    current.enabled = document.querySelector("#template-enabled")?.checked !== false;
+
+    if (document.querySelector("#template-default")?.checked) {
+      templateState.defaultTemplateId = current.id;
+    }
+    renderTemplateList();
+  }
+
+  function validateTemplateState() {
+    if (templateState.items.length === 0) {
+      setResult("#template-settings-result", t("至少需要保留一个模板。", "Keep at least one template."), false);
+      return false;
+    }
+
+    const invalid = templateState.items.find((item) => !item.name.trim());
+    if (invalid) {
+      templateState.selectedId = invalid.id;
+      renderTemplateList();
+      renderSelectedTemplate();
+      setResult("#template-settings-result", t("请填写模板名称。", "Enter a template name."), false);
+      document.querySelector("#template-name")?.focus();
+      return false;
+    }
+
+    const hasEnabled = templateState.items.some((item) => item.enabled);
+    if (!hasEnabled) {
+      setResult("#template-settings-result", t("至少需要启用一个模板，开发信页面才有可选模板。", "Enable at least one template so the outreach page has a selectable template."), false);
+      return false;
+    }
+
+    if (!templateState.items.some((item) => item.id === templateState.defaultTemplateId)) {
+      templateState.defaultTemplateId = templateState.items[0].id;
+    }
+    return true;
+  }
+
+  function buildTemplateSettingsPayload() {
+    return {
+      defaultTemplateId: templateState.defaultTemplateId,
+      items: templateState.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        language: item.language,
+        scenario: item.scenario,
+        subject: item.subject,
+        body: item.body,
+        instruction: item.instruction,
+        enabled: item.enabled
+      }))
+    };
+  }
+
+  function getSelectedTemplate() {
+    return templateState.items.find((item) => item.id === templateState.selectedId) || templateState.items[0] || null;
+  }
+
+  function createBlankTemplate() {
+    return {
+      id: createTemplateId(),
+      name: t("新建模板", "New Template"),
+      language: localStorage.getItem("leadflow-locale") === "en" ? "en" : "zh-CN",
+      scenario: "first-contact",
+      subject: "",
+      body: "",
+      instruction: "",
+      enabled: true
+    };
+  }
+
+  function createTemplateId() {
+    return `tpl-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  }
+
+  function languageLabel(language) {
+    const labels = {
+      "zh-CN": t("中文", "Chinese"),
+      en: t("英语", "English"),
+      de: t("德语", "German"),
+      fr: t("法语", "French"),
+      es: t("西班牙语", "Spanish"),
+      ru: t("俄语", "Russian"),
+      ar: t("阿拉伯语", "Arabic"),
+      pt: t("葡萄牙语", "Portuguese")
+    };
+    return labels[language] || language || t("未知语言", "Unknown Language");
+  }
+
   function bindGeneralSettings(settings) {
     setValue("#general-language", settings.general.language);
     setValue("#general-timezone", settings.general.timezone);
@@ -798,6 +1169,13 @@
     }
   }
 
+  function setChecked(selector, value) {
+    const element = document.querySelector(selector);
+    if (element) {
+      element.checked = Boolean(value);
+    }
+  }
+
   function valueOf(selector) {
     return String(document.querySelector(selector)?.value ?? "").trim();
   }
@@ -821,6 +1199,15 @@
       return false;
     }
     return fallbackValue;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll("\"", "&quot;")
+      .replaceAll("'", "&#39;");
   }
 
   function t(zh, en) {

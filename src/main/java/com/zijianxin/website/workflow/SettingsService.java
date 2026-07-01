@@ -65,6 +65,12 @@ public class SettingsService {
         return cachedSettings.general();
     }
 
+    public synchronized SettingsModels.TemplateSettings saveTemplateSettings(SettingsModels.TemplateSettings settings) {
+        cachedSettings = cachedSettings.withTemplates(settings);
+        persist();
+        return cachedSettings.templates();
+    }
+
     private SettingsModels.AppSettings loadSettings() {
         if (!Files.exists(settingsPath)) {
             SettingsModels.AppSettings defaults = SettingsModels.AppSettings.defaults();

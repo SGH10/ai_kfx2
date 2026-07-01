@@ -105,7 +105,8 @@ class AiSearchQueryPlannerServiceTest {
                 SettingsModels.SearchSettings.defaults(),
                 SettingsModels.CrawlerSettings.defaults(),
                 SettingsModels.MailSettings.defaults(),
-                SettingsModels.GeneralSettings.defaults()
+                SettingsModels.GeneralSettings.defaults(),
+                SettingsModels.TemplateSettings.defaults()
         );
     }
 }

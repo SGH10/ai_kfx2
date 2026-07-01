@@ -89,4 +89,8 @@ public class WorkflowService {
     public SettingsModels.GeneralSettings saveGeneralSettings(SettingsModels.GeneralSettings request) {
         return settingsService.saveGeneralSettings(request);
     }
+
+    public SettingsModels.TemplateSettings saveTemplateSettings(SettingsModels.TemplateSettings request) {
+        return settingsService.saveTemplateSettings(request);
+    }
 }

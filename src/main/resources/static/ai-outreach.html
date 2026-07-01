@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Outreach System | One Minute Tech</title>
     <meta name="description" content="AI outreach workspace for imported customers, manual lead entry, email draft generation, and optimization." />
-    <link rel="stylesheet" href="/styles.css?v=31" />
+    <link rel="stylesheet" href="/styles.css?v=34" />
   </head>
   <body class="site-body">
     <header class="topbar">
@@ -131,6 +131,14 @@
               <div class="selected-template-copy">
                 <span data-i18n="outreach.section.selectedTemplate">已选择模板</span>
                 <strong id="selected-template-name" data-i18n="outreach.template.defaultName">默认模板</strong>
+                <p id="selected-template-meta" class="selected-template-meta"></p>
+              </div>
+              <label class="input-group template-selector-row">
+                <span data-i18n="outreach.field.template">邮件模板</span>
+                <select id="template-selector" class="select-input"></select>
+              </label>
+              <div class="selected-template-actions">
+                <a class="action-button ghost section-action-button" href="/email-templates" data-i18n="outreach.button.manageTemplates">管理模板</a>
               </div>
             </div>
           </section>
@@ -152,7 +160,7 @@
                 </div>
                 <div class="topbar-actions">
                   <button id="optimize-draft" class="action-button ghost" type="button" data-i18n="outreach.button.optimize">AI优化</button>
-                  <button class="action-button ghost" type="button" data-i18n="outreach.button.saveTemplate">保存模板</button>
+                  <a class="action-button ghost" href="/email-templates" data-i18n="outreach.button.manageTemplates">管理模板</a>
                   <button class="action-button ghost" type="button" data-i18n="outreach.button.sendTop">发送</button>
                 </div>
               </div>
@@ -221,60 +229,6 @@
             </div>
           </article>
 
-          <article id="template-library" class="workspace-main-card template-library-panel">
-            <div class="results-toolbar">
-              <div class="section-title-row">
-                <span class="section-icon">
-                  <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M4 4h16v4H4zm0 6h16v10H4zm3 2h4v6H7z" />
-                  </svg>
-                </span>
-                <div>
-                  <h2 data-i18n="outreach.section.templateLibrary">邮件模板库</h2>
-                </div>
-              </div>
-              <a class="action-button ghost" href="/ai-settings" data-i18n="outreach.button.newTemplate">新建模板</a>
-            </div>
-            <div class="template-grid outreach-template-grid">
-              <article class="template-card">
-                <span class="template-badge" data-i18n="outreach.template.badgeHot">热门</span>
-                <h3 data-i18n="outreach.template.firstCnTitle">初次接触（中文）</h3>
-                <p class="feature-copy" data-i18n="outreach.template.firstCnCopy">zh · 初次开发</p>
-                <div class="template-meta">
-                  <span>2,341</span>
-                  <span>89%</span>
-                </div>
-              </article>
-              <article class="template-card">
-                <span class="template-badge">Popular</span>
-                <h3>First Contact (English)</h3>
-                <p class="feature-copy">en · First touch</p>
-                <div class="template-meta">
-                  <span>1,982</span>
-                  <span>85%</span>
-                </div>
-              </article>
-              <article class="template-card">
-                <span class="template-badge">Common</span>
-                <h3>Follow-up Email</h3>
-                <p class="feature-copy">en · Follow-up</p>
-                <div class="template-meta">
-                  <span>1,543</span>
-                  <span>72%</span>
-                </div>
-              </article>
-              <article class="template-card">
-                <span class="template-badge">Popular</span>
-                <h3>Primer Contacto (Español)</h3>
-                <p class="feature-copy">es · Primer contacto</p>
-                <div class="template-meta">
-                  <span>721</span>
-                  <span>80%</span>
-                </div>
-              </article>
-            </div>
-          </article>
-
           <div id="analysis-text" class="is-hidden"></div>
           <ul id="follow-up-list" class="is-hidden"></ul>
         </section>
@@ -324,7 +278,7 @@
           "outreach.section.targetLanguage": "目标语言",
           "outreach.section.selectedTemplate": "已选择模板",
           "outreach.section.editor": "开发信编辑",
-          "outreach.section.templateLibrary": "邮件模板库",
+          "outreach.field.template": "邮件模板",
           "outreach.field.productName": "产品名称 *",
           "outreach.field.productKeywords": "产品关键词 *",
           "outreach.field.valueProposition": "产品优势",
@@ -340,12 +294,11 @@
           "outreach.button.manualEntry": "手动输入",
           "outreach.button.clearCustomers": "清空客户",
           "outreach.button.optimize": "AI优化",
-          "outreach.button.saveTemplate": "保存模板",
           "outreach.button.sendTop": "发送",
           "outreach.button.generate": "AI生成开发信",
           "outreach.button.sendSelected": "发送给已选客户",
           "outreach.button.translate": "翻译邮件",
-          "outreach.button.newTemplate": "新建模板",
+          "outreach.button.manageTemplates": "管理模板",
           "outreach.button.close": "关闭",
           "outreach.button.addCustomer": "添加客户",
           "outreach.empty.noCustomerTitle": "暂无客户",
@@ -358,8 +311,33 @@
           "outreach.modal.manualTitle": "手动输入客户",
           "outreach.template.badgeHot": "热门",
           "outreach.template.defaultName": "默认模板",
+          "outreach.template.noEnabled": "暂无可用模板",
           "outreach.template.firstCnTitle": "初次接触（中文）",
           "outreach.template.firstCnCopy": "zh · 初次开发",
+          "lang.zh-CN": "中文",
+          "lang.en": "英语",
+          "lang.de": "德语",
+          "lang.fr": "法语",
+          "lang.es": "西班牙语",
+          "lang.ru": "俄语",
+          "lang.ar": "阿拉伯语",
+          "lang.pt": "葡萄牙语",
+          "outreach.button.generating": "生成中...",
+          "outreach.button.optimizing": "优化中...",
+          "outreach.button.translating": "翻译为 {language} 中...",
+          "outreach.button.sending": "发送中...",
+          "outreach.result.manualAdded": "已添加手动客户，现在可以直接测试 AI 写开发信。",
+          "outreach.result.needCustomer": "请先导入或手动输入至少一个客户。",
+          "outreach.result.generated": "开发信已通过 AI 生成。",
+          "outreach.result.needDraftForOptimize": "请先生成或输入开发信内容，再执行 AI 优化。",
+          "outreach.result.optimized": "开发信已通过 AI 优化。",
+          "outreach.result.needDraftForTranslate": "请先生成或输入开发信内容，再执行翻译。",
+          "outreach.result.translated": "邮件已翻译为 {language}。",
+          "outreach.result.needDraftForSend": "请先生成开发信内容，再执行发送。",
+          "outreach.result.noSendTarget": "当前没有可发送的目标客户。",
+          "outreach.result.sent": "已向 {count} 个客户发送。",
+          "outreach.result.clearedCustomers": "已清空当前客户。",
+          "outreach.result.failed": "操作失败，请稍后重试。",
           "outreach.placeholder.productName": "例如：智能手机配件",
           "outreach.placeholder.productKeywords": "例如：充电器,数据线,手机壳",
           "outreach.placeholder.valueProposition": "描述您的产品优势和特点...",
@@ -377,7 +355,7 @@
           "outreach.section.targetLanguage": "Target Language",
           "outreach.section.selectedTemplate": "Selected Template",
           "outreach.section.editor": "Outreach Editor",
-          "outreach.section.templateLibrary": "Email Templates",
+          "outreach.field.template": "Email Template",
           "outreach.field.productName": "Product Name *",
           "outreach.field.productKeywords": "Product Keywords *",
           "outreach.field.valueProposition": "Product Advantages",
@@ -393,12 +371,11 @@
           "outreach.button.manualEntry": "Manual Entry",
           "outreach.button.clearCustomers": "Clear Customers",
           "outreach.button.optimize": "AI Optimize",
-          "outreach.button.saveTemplate": "Save Template",
           "outreach.button.sendTop": "Send",
           "outreach.button.generate": "Generate Draft",
           "outreach.button.sendSelected": "Send to Selected",
           "outreach.button.translate": "Translate",
-          "outreach.button.newTemplate": "New Template",
+          "outreach.button.manageTemplates": "Manage Templates",
           "outreach.button.close": "Close",
           "outreach.button.addCustomer": "Add Customer",
           "outreach.empty.noCustomerTitle": "No Customers Yet",
@@ -411,8 +388,33 @@
           "outreach.modal.manualTitle": "Manual Customer Entry",
           "outreach.template.badgeHot": "Hot",
           "outreach.template.defaultName": "Default Template",
+          "outreach.template.noEnabled": "No Available Templates",
           "outreach.template.firstCnTitle": "First Contact (Chinese)",
           "outreach.template.firstCnCopy": "zh · Initial outreach",
+          "lang.zh-CN": "Chinese",
+          "lang.en": "English",
+          "lang.de": "German",
+          "lang.fr": "French",
+          "lang.es": "Spanish",
+          "lang.ru": "Russian",
+          "lang.ar": "Arabic",
+          "lang.pt": "Portuguese",
+          "outreach.button.generating": "Generating...",
+          "outreach.button.optimizing": "Optimizing...",
+          "outreach.button.translating": "Translating to {language}...",
+          "outreach.button.sending": "Sending...",
+          "outreach.result.manualAdded": "Manual customer added. You can test AI outreach now.",
+          "outreach.result.needCustomer": "Import or manually add at least one customer first.",
+          "outreach.result.generated": "The outreach draft was generated by AI.",
+          "outreach.result.needDraftForOptimize": "Generate or enter an email before running AI optimization.",
+          "outreach.result.optimized": "The outreach email was optimized by AI.",
+          "outreach.result.needDraftForTranslate": "Generate or enter an email before translating.",
+          "outreach.result.translated": "Email translated to {language}.",
+          "outreach.result.needDraftForSend": "Generate the email content before sending.",
+          "outreach.result.noSendTarget": "There is no target customer to send to.",
+          "outreach.result.sent": "Sent to {count} customers.",
+          "outreach.result.clearedCustomers": "Current customers cleared.",
+          "outreach.result.failed": "Operation failed. Please try again later.",
           "outreach.placeholder.productName": "e.g. smartphone accessories",
           "outreach.placeholder.productKeywords": "e.g. chargers, cables, phone cases",
           "outreach.placeholder.valueProposition": "Describe your product strengths and differentiators...",
@@ -426,6 +428,6 @@
       };
     </script>
     <script src="/main.js?v=6"></script>
-    <script src="/ai-outreach.js?v=13"></script>
+    <script src="/ai-outreach.js?v=15"></script>
   </body>
 </html>

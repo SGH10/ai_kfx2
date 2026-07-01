@@ -109,4 +109,9 @@ public class WorkflowApiController {
     public SettingsModels.GeneralSettings saveGeneralSettings(@RequestBody SettingsModels.GeneralSettings request) {
         return workflowService.saveGeneralSettings(request);
     }
+
+    @PostMapping("/settings/templates")
+    public SettingsModels.TemplateSettings saveTemplateSettings(@RequestBody SettingsModels.TemplateSettings request) {
+        return workflowService.saveTemplateSettings(request);
+    }
 }

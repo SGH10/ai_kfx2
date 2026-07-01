@@ -48,6 +48,12 @@ public class PageController {
         return "forward:/mail-settings.html";
     }
 
+    @GetMapping("/email-templates")
+    public String emailTemplatesPage(HttpServletResponse response) {
+        noCache(response);
+        return "forward:/email-templates.html";
+    }
+
     @GetMapping("/general-settings")
     public String generalSettingsPage(HttpServletResponse response) {
         noCache(response);

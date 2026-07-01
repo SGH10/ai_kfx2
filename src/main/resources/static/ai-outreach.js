@@ -15,6 +15,9 @@
   const recipientEmailPreview = document.querySelector("#recipient-email-preview");
   const composeLanguage = document.querySelector("#compose-language");
   const languagePills = Array.from(document.querySelectorAll(".language-pill[data-language]"));
+  const templateSelector = document.querySelector("#template-selector");
+  const selectedTemplateName = document.querySelector("#selected-template-name");
+  const selectedTemplateMeta = document.querySelector("#selected-template-meta");
   const sidebarProductName = document.querySelector("#sidebar-product-name");
   const sidebarProductKeywords = document.querySelector("#sidebar-product-keywords");
   const sidebarValueProposition = document.querySelector("#sidebar-value-proposition");
@@ -33,6 +36,59 @@
   const draftEmptyState = document.querySelector(".ref-mail-body-empty");
   const sendButton = document.querySelector("#send-email");
   const sendResult = document.querySelector("#send-result");
+  const defaultEmailTemplates = [
+    {
+      id: "tpl-first-zh",
+      name: "初次接触（中文）",
+      language: "zh-CN",
+      scenario: "first-contact",
+      subject: "想和 {{recipientCompany}} 聊聊 {{productName}} 的合作机会",
+      body: `{{contactName}}您好，
+
+我是 {{senderName}}，来自 {{senderCompany}}，我们在做 {{productName}} 相关方案。留意到 {{recipientCompany}} 的业务方向后，感觉我们的产品可能能在 {{valueProposition}} 这类场景里提供一些实际帮助。
+
+如果您现在也在关注类似需求，我可以先发一份简短资料，或者约 15 分钟沟通一下，看是否值得进一步对接。
+
+祝好，
+{{senderName}}`,
+      instruction: "适合第一次联系目标客户。不要机械照抄模板，要根据客户公司和产品价值写出具体、自然的合作理由；如果没有真实联系人姓名，只用“您好”。",
+      enabled: true
+    },
+    {
+      id: "tpl-first-en",
+      name: "First Contact (English)",
+      language: "en",
+      scenario: "first-contact",
+      subject: "Potential fit around {{productName}}",
+      body: `Hi {{contactName}},
+
+I am {{senderName}} from {{senderCompany}}. We provide {{productName}} and help teams like {{recipientCompany}} {{valueProposition}}.
+
+Would you be open to a short 15-minute call to see whether there is a fit?
+
+Best regards,
+{{senderName}}`,
+      instruction: "Use for first-touch outbound emails. Keep it concise, relevant, and focused on one clear call to action.",
+      enabled: true
+    },
+    {
+      id: "tpl-follow-up-en",
+      name: "Follow-up Email",
+      language: "en",
+      scenario: "follow-up",
+      subject: "Quick follow-up on {{productName}}",
+      body: `Hi {{contactName}},
+
+I wanted to quickly follow up on my previous note about {{productName}}.
+
+If this is relevant for {{recipientCompany}}, I would be happy to share a short overview or a few practical examples.
+
+Best,
+{{senderName}}`,
+      instruction: "Use after no reply. Keep it lighter than the first email and avoid repeating the whole pitch.",
+      enabled: true
+    }
+  ];
   const localeMessages = {
     "zh-CN": {
       "brand.name": "一分钟科技",
@@ -46,6 +102,7 @@
       "section.selectedTemplate": "已选择模板",
       "section.editor": "开发信编辑",
       "section.templateLibrary": "邮件模板库",
+      "field.template": "邮件模板",
       "field.productName": "产品名称 *",
       "field.productKeywords": "产品关键词 *",
       "field.valueProposition": "产品优势",
@@ -67,10 +124,12 @@
       "button.sendSelected": "发送给已选客户",
       "button.translate": "翻译邮件",
       "button.newTemplate": "新建模板",
+      "button.manageTemplates": "管理模板",
       "button.close": "关闭",
       "button.addCustomer": "添加客户",
       "badge.hot": "热门",
       "template.defaultName": "默认模板",
+      "template.noEnabled": "暂无可用模板",
       "template.zh.title": "初次接触（中文）",
       "template.zh.copy": "zh · 初次开发",
       "lang.zh-CN": "中文",
@@ -111,6 +170,7 @@
       "section.selectedTemplate": "Selected Template",
       "section.editor": "Outreach Editor",
       "section.templateLibrary": "Email Templates",
+      "field.template": "Email Template",
       "field.productName": "Product Name *",
       "field.productKeywords": "Product Keywords *",
       "field.valueProposition": "Product Advantages",
@@ -132,10 +192,12 @@
       "button.sendSelected": "Send to Selected",
       "button.translate": "Translate",
       "button.newTemplate": "New Template",
+      "button.manageTemplates": "Manage Templates",
       "button.close": "Close",
       "button.addCustomer": "Add Customer",
       "badge.hot": "Hot",
       "template.defaultName": "Default Template",
+      "template.noEnabled": "No Available Templates",
       "template.zh.title": "First Contact (Chinese)",
       "template.zh.copy": "zh · Initial outreach",
       "lang.zh-CN": "Chinese",
@@ -169,6 +231,8 @@
   const outreachState = {
     recipients: [],
     selectedIds: new Set(),
+    templates: [],
+    selectedTemplateId: "",
     settings: null
   };
 
@@ -179,8 +243,11 @@
   async function init() {
     await hydrateSettings();
     hydrateRecipients();
+    hydrateTemplates();
     renderRecipients();
+    renderTemplateSelector();
     syncDefaultsFromSettings();
+    applySelectedTemplate(true);
     bindSidebarSync();
 
     composeForm?.addEventListener("submit", handleGenerateDraft);
@@ -188,6 +255,10 @@
     translateButton?.addEventListener("click", handleTranslateEmail);
     sendButton?.addEventListener("click", handleSendEmail);
     recipientList?.addEventListener("change", handleRecipientSelection);
+    templateSelector?.addEventListener("change", () => {
+      outreachState.selectedTemplateId = templateSelector.value;
+      applySelectedTemplate(true);
+    });
     searchImportButton?.addEventListener("click", () => {
       window.location.href = "/customer-search";
     });
@@ -215,13 +286,18 @@
 
     window.addEventListener("leadflow:locale-changed", (event) => {
       applyPageLocale(event.detail?.locale || "zh-CN");
+      renderTemplateSelector();
+      applySelectedTemplate(false);
     });
 
     // 处理浏览器 bfcache 恢复：重新读取 localStorage 刷新客户列表
     window.addEventListener("pageshow", (event) => {
       if (event.persisted) {
         hydrateRecipients();
+        hydrateTemplates();
         renderRecipients();
+        renderTemplateSelector();
+        applySelectedTemplate(false);
         updateSendButtonState();
       }
     });
@@ -258,6 +334,93 @@
     localStorage.removeItem(outreachImportFlagKey);
     window.history.replaceState({}, document.title, window.location.pathname);
     outreachState.selectedIds = new Set(outreachState.recipients.map((recipient) => recipient.id));
+  }
+
+  function hydrateTemplates() {
+    const normalized = normalizeTemplateSettings(outreachState.settings?.templates);
+    outreachState.templates = normalized.items.filter((template) => template.enabled);
+    if (outreachState.templates.length === 0) {
+      outreachState.templates = normalized.items;
+    }
+
+    const preferredId = outreachState.selectedTemplateId || normalized.defaultTemplateId;
+    outreachState.selectedTemplateId = outreachState.templates.some((template) => template.id === preferredId)
+      ? preferredId
+      : outreachState.templates[0]?.id || "";
+  }
+
+  function normalizeTemplateSettings(templateSettings) {
+    const sourceItems = Array.isArray(templateSettings?.items) && templateSettings.items.length > 0
+      ? templateSettings.items
+      : defaultEmailTemplates;
+    const items = sourceItems.map(normalizeTemplate);
+    const requestedDefaultId = String(templateSettings?.defaultTemplateId || "").trim();
+    const defaultTemplateId = items.some((item) => item.id === requestedDefaultId)
+      ? requestedDefaultId
+      : items[0]?.id || "";
+    return {
+      defaultTemplateId,
+      items
+    };
+  }
+
+  function normalizeTemplate(template) {
+    return {
+      id: String(template?.id || `tpl-${Date.now()}`).trim(),
+      name: String(template?.name || t("outreach.template.defaultName", "默认模板")).trim(),
+      language: String(template?.language || "zh-CN").trim(),
+      scenario: String(template?.scenario || "first-contact").trim(),
+      subject: String(template?.subject || ""),
+      body: String(template?.body || ""),
+      instruction: String(template?.instruction || ""),
+      enabled: template?.enabled !== false
+    };
+  }
+
+  function renderTemplateSelector() {
+    if (!templateSelector) {
+      return;
+    }
+
+    if (outreachState.templates.length === 0) {
+      templateSelector.innerHTML = `<option value="">${escapeHtml(t("outreach.template.noEnabled", "暂无可用模板"))}</option>`;
+      templateSelector.disabled = true;
+      return;
+    }
+
+    templateSelector.disabled = false;
+    templateSelector.innerHTML = outreachState.templates
+      .map((template) => `<option value="${escapeHtml(template.id)}">${escapeHtml(template.name)}</option>`)
+      .join("");
+    templateSelector.value = outreachState.selectedTemplateId || outreachState.templates[0].id;
+  }
+
+  function applySelectedTemplate(syncLanguage) {
+    const template = getSelectedTemplate();
+    if (!template) {
+      if (selectedTemplateName) {
+        selectedTemplateName.textContent = t("outreach.template.noEnabled", "暂无可用模板");
+      }
+      if (selectedTemplateMeta) {
+        selectedTemplateMeta.textContent = "";
+      }
+      return;
+    }
+
+    outreachState.selectedTemplateId = template.id;
+    if (templateSelector) {
+      templateSelector.value = template.id;
+    }
+    if (selectedTemplateName) {
+      selectedTemplateName.textContent = template.name || t("outreach.template.defaultName", "默认模板");
+    }
+    if (selectedTemplateMeta) {
+      selectedTemplateMeta.textContent = `${languageLabel(template.language)} · ${template.scenario || "first-contact"}`;
+    }
+
+    if (syncLanguage && template.language) {
+      selectLanguage(template.language);
+    }
   }
 
   function syncDefaultsFromSettings() {
@@ -375,20 +538,20 @@
     renderRecipients();
     updateSendButtonState();
     closeManualModal();
-    showResult("已添加手动客户，现在可以直接测试 AI 写开发信。", "success");
+    showResult(t("outreach.result.manualAdded", "已添加手动客户，现在可以直接测试 AI 写开发信。"), "success");
   }
 
   async function handleGenerateDraft(event) {
     event.preventDefault();
 
     if (getSelectedRecipients().length === 0) {
-      showResult("请先导入或手动输入至少一个客户。", "warning");
+      showResult(t("outreach.result.needCustomer", "请先导入或手动输入至少一个客户。"), "warning");
       return;
     }
 
     const generateButton = document.querySelector("#generate-draft");
     generateButton.disabled = true;
-    generateButton.textContent = "生成中...";
+    generateButton.textContent = t("outreach.button.generating", "生成中...");
 
     try {
       const payload = buildDraftPayload();
@@ -407,24 +570,24 @@
       draftBody.value = data.body || "";
       toggleDraftEmptyState();
       updateSendButtonState();
-      showResult(data.analysis || "开发信已通过 AI 生成。", "success");
+      showResult(data.analysis || t("outreach.result.generated", "开发信已通过 AI 生成。"), "success");
     } catch (error) {
       console.error("Draft generation failed:", error);
       showResult(normalizeError(error), "warning");
     } finally {
       generateButton.disabled = false;
-      generateButton.textContent = "AI生成开发信";
+      generateButton.textContent = t("outreach.button.generate", "AI生成开发信");
     }
   }
 
   async function handleOptimizeDraft() {
     if (!draftBody.value.trim()) {
-      showResult("请先生成或输入开发信内容，再执行 AI 优化。", "warning");
+      showResult(t("outreach.result.needDraftForOptimize", "请先生成或输入开发信内容，再执行 AI 优化。"), "warning");
       return;
     }
 
     optimizeButton.disabled = true;
-    optimizeButton.textContent = "优化中...";
+    optimizeButton.textContent = t("outreach.button.optimizing", "优化中...");
 
     try {
       const payload = {
@@ -436,6 +599,7 @@
         language: composeLanguage.value || "zh-CN",
         tone: "professional",
         callToAction: hiddenCallToAction.value || "",
+        template: selectedTemplateContext(),
         recipients: getSelectedRecipients()
       };
 
@@ -454,19 +618,19 @@
       draftBody.value = data.body || draftBody.value;
       toggleDraftEmptyState();
       updateSendButtonState();
-      showResult(data.analysis || "开发信已通过 AI 优化。", "success");
+      showResult(data.analysis || t("outreach.result.optimized", "开发信已通过 AI 优化。"), "success");
     } catch (error) {
       console.error("Draft optimization failed:", error);
       showResult(normalizeError(error), "warning");
     } finally {
       optimizeButton.disabled = false;
-      optimizeButton.textContent = "AI优化";
+      optimizeButton.textContent = t("outreach.button.optimize", "AI优化");
     }
   }
 
   async function handleTranslateEmail() {
     if (!draftBody.value.trim()) {
-      showResult("请先生成或输入开发信内容，再执行翻译。", "warning");
+      showResult(t("outreach.result.needDraftForTranslate", "请先生成或输入开发信内容，再执行翻译。"), "warning");
       return;
     }
 
@@ -475,7 +639,7 @@
     const originalText = translateButton.textContent;
 
     translateButton.disabled = true;
-    translateButton.textContent = `翻译为${targetLanguageName}中...`;
+    translateButton.textContent = t("outreach.button.translating", `翻译为${targetLanguageName}中...`).replace("{language}", targetLanguageName);
 
     try {
       const payload = {
@@ -499,7 +663,7 @@
       draftBody.value = data.body || draftBody.value;
       toggleDraftEmptyState();
       updateSendButtonState();
-      showResult(`邮件已翻译为 ${targetLanguageName}。`, "success");
+      showResult(t("outreach.result.translated", `邮件已翻译为 ${targetLanguageName}。`).replace("{language}", targetLanguageName), "success");
     } catch (error) {
       console.error("Email translation failed:", error);
       showResult(normalizeError(error), "warning");
@@ -511,17 +675,17 @@
 
   async function handleSendEmail() {
     if (!draftSubject.value.trim() || !draftBody.value.trim()) {
-      showResult("请先生成开发信内容，再执行发送。", "warning");
+      showResult(t("outreach.result.needDraftForSend", "请先生成开发信内容，再执行发送。"), "warning");
       return;
     }
 
     if (getSelectedRecipients().length === 0) {
-      showResult("当前没有可发送的目标客户。", "warning");
+      showResult(t("outreach.result.noSendTarget", "当前没有可发送的目标客户。"), "warning");
       return;
     }
 
     sendButton.disabled = true;
-    sendButton.textContent = "发送中...";
+    sendButton.textContent = t("outreach.button.sending", "发送中...");
 
     try {
       const payload = {
@@ -543,13 +707,13 @@
       }
 
       const data = await response.json();
-      showResult(data.message || `已向 ${data.sentCount || 0} 个客户发送。`, "success");
+      showResult(data.message || t("outreach.result.sent", `已向 ${data.sentCount || 0} 个客户发送。`).replace("{count}", data.sentCount || 0), "success");
     } catch (error) {
       console.error("Send email failed:", error);
       showResult(normalizeError(error), "warning");
     } finally {
       updateSendButtonState();
-      sendButton.textContent = "发送给已选客户";
+      sendButton.textContent = t("outreach.button.sendSelected", "发送给已选客户");
     }
   }
 
@@ -561,7 +725,23 @@
       language: composeLanguage.value || "zh-CN",
       tone: "professional",
       callToAction: hiddenCallToAction.value || "",
+      template: selectedTemplateContext(),
       recipients: getSelectedRecipients()
+    };
+  }
+
+  function selectedTemplateContext() {
+    const template = getSelectedTemplate();
+    if (!template) {
+      return null;
+    }
+    return {
+      id: template.id,
+      name: template.name,
+      scenario: template.scenario,
+      subject: template.subject,
+      body: template.body,
+      instruction: template.instruction
     };
   }
 
@@ -572,7 +752,7 @@
     localStorage.removeItem(outreachImportFlagKey);
     renderRecipients();
     updateSendButtonState();
-    showResult("已清空当前客户。", "success");
+    showResult(t("outreach.result.clearedCustomers", "已清空当前客户。"), "success");
   }
 
   function handleRecipientSelection(event) {
@@ -606,6 +786,12 @@
     return outreachState.recipients.filter((recipient) => outreachState.selectedIds.has(recipient.id));
   }
 
+  function getSelectedTemplate() {
+    return outreachState.templates.find((template) => template.id === outreachState.selectedTemplateId)
+      || outreachState.templates[0]
+      || null;
+  }
+
   function selectLanguage(language) {
     composeLanguage.value = language;
     syncLanguagePillsFromSelect();
@@ -616,6 +802,20 @@
     languagePills.forEach((pill) => {
       pill.classList.toggle("is-selected", pill.getAttribute("data-language") === current);
     });
+  }
+
+  function languageLabel(language) {
+    const labels = {
+      "zh-CN": t("lang.zh-CN", "中文"),
+      en: t("lang.en", "英语"),
+      de: t("lang.de", "德语"),
+      fr: t("lang.fr", "法语"),
+      es: t("lang.es", "西班牙语"),
+      ru: t("lang.ru", "俄语"),
+      ar: t("lang.ar", "阿拉伯语"),
+      pt: t("lang.pt", "葡萄牙语")
+    };
+    return labels[language] || language || t("outreach.status.unconfirmed", "待人工确认");
   }
 
   function applyPageLocale(locale) {
@@ -678,10 +878,10 @@
 
   function normalizeError(error) {
     if (!error) {
-      return "操作失败，请稍后重试。";
+      return t("outreach.result.failed", "操作失败，请稍后重试。");
     }
     const message = String(error.message || error).replace(/^Error:\s*/, "").trim();
-    return message || "操作失败，请稍后重试。";
+    return message || t("outreach.result.failed", "操作失败，请稍后重试。");
   }
 
   function escapeHtml(value) {

@@ -67,6 +67,7 @@ public final class WorkflowModels {
             String language,
             String tone,
             String callToAction,
+            EmailTemplateContext template,
             List<CustomerLead> recipients
     ) {
     }
@@ -88,7 +89,18 @@ public final class WorkflowModels {
             String language,
             String tone,
             String callToAction,
+            EmailTemplateContext template,
             List<CustomerLead> recipients
+    ) {
+    }
+
+    public record EmailTemplateContext(
+            String id,
+            String name,
+            String scenario,
+            String subject,
+            String body,
+            String instruction
     ) {
     }
 

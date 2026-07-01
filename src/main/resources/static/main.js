@@ -10,7 +10,8 @@
       "shared.nav.search": "客户搜索",
       "shared.nav.outreach": "开发信",
       "shared.systemSettings": "系统配置",
-      "shared.backHome": "返回首页"
+      "shared.backHome": "返回首页",
+      "shared.settings.emailTemplates": "邮件模板"
     },
     en: {
       "shared.brand.name": "One Minute Tech",
@@ -19,7 +20,8 @@
       "shared.nav.search": "Customer Search",
       "shared.nav.outreach": "Outreach",
       "shared.systemSettings": "System Settings",
-      "shared.backHome": "Back Home"
+      "shared.backHome": "Back Home",
+      "shared.settings.emailTemplates": "Email Templates"
     }
   };
 
